@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InstagramCallbackRouteImport } from './routes/instagram.callback'
+import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticated/accounts'
 import { Route as ApiPublicPublishDueRouteImport } from './routes/api/public/publish-due'
@@ -36,6 +37,11 @@ const InstagramCallbackRoute = InstagramCallbackRouteImport.update({
   path: '/instagram/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedScheduleRoute = AuthenticatedScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/accounts': typeof AuthenticatedAccountsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/schedule': typeof AuthenticatedScheduleRoute
   '/instagram/callback': typeof InstagramCallbackRoute
   '/api/public/publish-due': typeof ApiPublicPublishDueRoute
 }
@@ -65,6 +72,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/accounts': typeof AuthenticatedAccountsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/schedule': typeof AuthenticatedScheduleRoute
   '/instagram/callback': typeof InstagramCallbackRoute
   '/api/public/publish-due': typeof ApiPublicPublishDueRoute
 }
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/accounts': typeof AuthenticatedAccountsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/instagram/callback': typeof InstagramCallbackRoute
   '/api/public/publish-due': typeof ApiPublicPublishDueRoute
 }
@@ -85,6 +94,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/accounts'
     | '/dashboard'
+    | '/schedule'
     | '/instagram/callback'
     | '/api/public/publish-due'
   fileRoutesByTo: FileRoutesByTo
@@ -93,6 +103,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/accounts'
     | '/dashboard'
+    | '/schedule'
     | '/instagram/callback'
     | '/api/public/publish-due'
   id:
@@ -102,6 +113,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/accounts'
     | '/_authenticated/dashboard'
+    | '/_authenticated/schedule'
     | '/instagram/callback'
     | '/api/public/publish-due'
   fileRoutesById: FileRoutesById
@@ -144,6 +156,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InstagramCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/schedule': {
+      id: '/_authenticated/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof AuthenticatedScheduleRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -171,11 +190,13 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccountsRoute: typeof AuthenticatedAccountsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccountsRoute: AuthenticatedAccountsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
