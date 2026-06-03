@@ -78,14 +78,37 @@ function AccountsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Contas conectadas</h1>
-          <p className="text-sm text-muted-foreground">Gerencie suas contas do Instagram Business.</p>
+          <p className="text-sm text-muted-foreground">Vincule e gerencie seus perfis do Instagram Business.</p>
         </div>
-        <Button onClick={startConnect} disabled={connecting}>
-          <Plus className="mr-2 h-4 w-4" /> {connecting ? "Conectando..." : "Conectar Instagram"}
+        <Button onClick={startConnect} disabled={connecting} className="gap-2">
+          <Plus className="h-4 w-4" /> {connecting ? "Conectando..." : "Conectar via Facebook"}
         </Button>
+      </div>
+
+      {/* Informativo explicativo de API */}
+      <div className="rounded-xl border bg-muted/40 p-5 space-y-3">
+        <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+          <Instagram className="h-4.5 w-4.5 text-primary" /> Por que entrar com o Facebook?
+        </h3>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          A API oficial da Meta para <strong>agendamento e publicação automática</strong> exige que a sua conta do
+          Instagram seja do tipo <strong>Business (Comercial) ou Creator (Criador de Conteúdo)</strong> e que esteja
+          <strong>vinculada a uma Página do Facebook</strong> que você gerencie. 
+        </p>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Por esse motivo, a autorização e a conexão dos perfis ocorrem obrigatoriamente através do fluxo de login da sua conta do Facebook.
+        </p>
+        <div className="text-xs font-medium border-t pt-3 space-y-1">
+          <p className="text-foreground">Requisitos para conectar com sucesso:</p>
+          <ul className="list-disc pl-5 text-muted-foreground space-y-0.5 mt-1 font-normal">
+            <li>Sua conta do Instagram deve ser Comercial (Business) ou Criador (Creator).</li>
+            <li>Ela deve estar associada a uma Página do Facebook (Configurações do Instagram &gt; Contas vinculadas).</li>
+            <li>Você deve ser administrador dessa Página do Facebook para dar permissão de publicação ao app.</li>
+          </ul>
+        </div>
       </div>
 
       {config && !config.configured && (
@@ -109,6 +132,7 @@ function AccountsPage() {
           <p className="text-sm text-muted-foreground">Nenhuma conta conectada ainda.</p>
         </div>
       ) : (
+
         <div className="space-y-3">
           {accounts.map((a: any) => (
             <div key={a.id} className="flex items-center justify-between rounded-xl border bg-card p-4">
