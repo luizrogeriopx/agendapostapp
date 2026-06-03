@@ -34,10 +34,8 @@ export const checkIsAdmin = createServerFn({ method: "GET" })
     const email = authUser?.user?.email || "";
     const name = (profile?.display_name || authUser?.user?.user_metadata?.name || authUser?.user?.user_metadata?.full_name || "").toLowerCase();
 
-    const isMatch =
-      email.toLowerCase().includes("luizrogeriopx") ||
-      name.includes("luiz") ||
-      name.includes("rogerio");
+    const isMatch = email.toLowerCase().includes("luizrogeriopx");
+
 
     if (isMatch && profile && profile.role !== "admin") {
       // Elevate role in database automatically
