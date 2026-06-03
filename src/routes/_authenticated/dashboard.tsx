@@ -7,6 +7,7 @@ import { POST_TYPE_LABELS, POST_STATUS_LABELS, type PostType } from "@/lib/meta"
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CalendarPlus, Users, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Painel — Agendador de Instagram" }] }),
@@ -32,22 +33,43 @@ function Dashboard() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Painel</h1>
           <p className="text-sm text-muted-foreground">Visão geral dos seus agendamentos.</p>
         </div>
-        <Link to="/schedule">
-          <Button>
-            <CalendarPlus className="mr-2 h-4 w-4" /> Novo agendamento
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to="/accounts">
+            <Button variant="outline" className="gap-2">
+              <Users className="h-4 w-4" /> Conectar/Gerenciar Contas
+            </Button>
+          </Link>
+          <Link to="/schedule">
+            <Button className="gap-2">
+              <CalendarPlus className="h-4 w-4" /> Novo agendamento
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard icon={Clock} label="Agendados" value={upcoming.length} />
+        <Link to="/schedule" className="block hover:no-underline">
+          <StatCard
+            icon={Clock}
+            label="Agendados"
+            value={upcoming.length}
+            className="hover:border-primary/50 hover:shadow-sm cursor-pointer transition-all"
+          />
+        </Link>
         <StatCard icon={CalendarPlus} label="Publicados" value={published.length} />
-        <StatCard icon={Users} label="Contas conectadas" value={accounts.length} />
+        <Link to="/accounts" className="block hover:no-underline">
+          <StatCard
+            icon={Users}
+            label="Contas conectadas"
+            value={accounts.length}
+            className="hover:border-primary/50 hover:shadow-sm cursor-pointer transition-all"
+          />
+        </Link>
       </div>
 
       {accounts.length === 0 && (
@@ -91,9 +113,19 @@ function Dashboard() {
   );
 }
 
-function StatCard({ icon: Icon, label, value }: { icon: any; label: string; value: number }) {
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  className,
+}: {
+  icon: any;
+  label: string;
+  value: number;
+  className?: string;
+}) {
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className={cn("rounded-xl border bg-card p-5", className)}>
       <div className="flex items-center gap-3">
         <span
           className="flex h-10 w-10 items-center justify-center rounded-lg text-white"
@@ -109,3 +141,4 @@ function StatCard({ icon: Icon, label, value }: { icon: any; label: string; valu
     </div>
   );
 }
+
