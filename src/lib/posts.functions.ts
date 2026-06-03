@@ -70,6 +70,102 @@ export const deletePost = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updatePost = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        caption: z.string().max(2200).optional().default(""),
+        scheduledAt: z.string().datetime(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: post, error } = await supabase
+      .from("scheduled_posts")
+      .update({
+        caption: data.caption,
+        scheduled_at: data.scheduledAt,
+      })
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return post;
+  });
+
+export const publishPostNow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { publishToInstagram } = await import("@/lib/publish.server");
+
+    // Fetch the post and check ownership
+    const { data: post, error: pErr } = await supabaseAdmin
+      .from("scheduled_posts")
+      .select("id, post_type, caption, media_urls, account_id, user_id, status")
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .single();
+
+    if (pErr || !post) throw new Error("Publicação não encontrada.");
+    if (post.status === "published") throw new Error("Esta publicação já foi postada.");
+
+    // Update status to "publishing"
+    await supabaseAdmin
+      .from("scheduled_posts")
+      .update({ status: "publishing" })
+      .eq("id", post.id);
+
+    try {
+      // Get the Instagram account
+      const { data: account, error: accErr } = await supabaseAdmin
+        .from("instagram_accounts")
+        .select("ig_user_id, access_token")
+        .eq("id", post.account_id)
+        .single();
+      if (accErr || !account) throw new Error("Conta do Instagram não encontrada.");
+
+      // Generate signed URLs for media
+      const signedUrls: string[] = [];
+      for (const path of post.media_urls as string[]) {
+        const { data: signed, error: sErr } = await supabaseAdmin.storage
+          .from("post-media")
+          .createSignedUrl(path, 3600);
+        if (sErr || !signed?.signedUrl) throw new Error("Falha ao gerar URL da mídia.");
+        signedUrls.push(signed.signedUrl);
+      }
+
+      // Publish to Instagram
+      const igMediaId = await publishToInstagram(post as any, account, signedUrls);
+
+      // Update post status to published
+      await supabaseAdmin
+        .from("scheduled_posts")
+        .update({
+          status: "published",
+          ig_media_id: igMediaId,
+          published_at: new Date().toISOString(),
+          error_message: null,
+        })
+        .eq("id", post.id);
+
+      return { ok: true, igMediaId };
+    } catch (e: any) {
+      // Revert status to failed
+      await supabaseAdmin
+        .from("scheduled_posts")
+        .update({ status: "failed", error_message: e?.message ?? "Erro desconhecido" })
+        .eq("id", post.id);
+      throw new Error(e?.message || "Falha ao publicar no Instagram.");
+    }
+  });
+
 // Creates short-lived signed URLs so the UI can preview private media.
 export const getPreviewUrls = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -86,3 +182,4 @@ export const getPreviewUrls = createServerFn({ method: "POST" })
     }
     return result;
   });
+

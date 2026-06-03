@@ -1,13 +1,31 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { listPosts } from "@/lib/posts.functions";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { listPosts, deletePost, updatePost, publishPostNow } from "@/lib/posts.functions";
 import { listAccounts } from "@/lib/instagram.functions";
 import { POST_TYPE_LABELS, POST_STATUS_LABELS, type PostType } from "@/lib/meta";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CalendarPlus, Users, Clock } from "lucide-react";
+import { CalendarPlus, Users, Clock, MoreVertical, Pencil, Trash, Play, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Painel — Agendador de Instagram" }] }),
@@ -22,14 +40,87 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive" | "o
 };
 
 function Dashboard() {
+  const qc = useQueryClient();
   const fetchPosts = useServerFn(listPosts);
   const fetchAccounts = useServerFn(listAccounts);
+  const removePost = useServerFn(deletePost);
+  const editPost = useServerFn(updatePost);
+  const publishNow = useServerFn(publishPostNow);
 
-  const { data: posts = [] } = useQuery({ queryKey: ["posts"], queryFn: () => fetchPosts() });
+  const { data: posts = [], isLoading } = useQuery({
+    queryKey: ["posts"],
+    queryFn: () => fetchPosts(),
+  });
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: () => fetchAccounts() });
 
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [editingPost, setEditingPost] = useState<any | null>(null);
+  const [editCaption, setEditCaption] = useState("");
+  const [editScheduledAt, setEditScheduledAt] = useState("");
+  const [saving, setSaving] = useState(false);
+
   const upcoming = posts.filter((p: any) => p.status === "scheduled");
-  const published = posts.filter((p: any) => p.status === "published");
+  const history = posts.filter((p: any) => p.status !== "scheduled");
+
+  const handleDelete = async (id: string) => {
+    try {
+      await removePost({ data: { id } });
+      toast.success("Publicação excluída.");
+      qc.invalidateQueries({ queryKey: ["posts"] });
+    } catch (e: any) {
+      toast.error(e?.message || "Falha ao excluir.");
+    }
+  };
+
+  const handlePublishNow = async (id: string) => {
+    setPublishingId(id);
+    const toastId = toast.loading("Publicando no Instagram...");
+    try {
+      await publishNow({ data: { id } });
+      toast.success("Publicado com sucesso!", { id: toastId });
+      qc.invalidateQueries({ queryKey: ["posts"] });
+    } catch (e: any) {
+      toast.error(e?.message || "Falha ao publicar.", { id: toastId });
+      qc.invalidateQueries({ queryKey: ["posts"] });
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
+  const startEdit = (post: any) => {
+    setEditingPost(post);
+    setEditCaption(post.caption || "");
+    const date = new Date(post.scheduled_at);
+    const ten = (i: number) => (i < 10 ? "0" : "") + i;
+    const yyyy = date.getFullYear();
+    const mm = ten(date.getMonth() + 1);
+    const dd = ten(date.getDate());
+    const hh = ten(date.getHours());
+    const min = ten(date.getMinutes());
+    setEditScheduledAt(`${yyyy}-${mm}-${dd}T${hh}:${min}`);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingPost) return;
+    if (!editScheduledAt) return toast.error("Selecione data e hora.");
+    setSaving(true);
+    try {
+      await editPost({
+        data: {
+          id: editingPost.id,
+          caption: editCaption,
+          scheduledAt: new Date(editScheduledAt).toISOString(),
+        },
+      });
+      toast.success("Publicação atualizada!");
+      setEditingPost(null);
+      qc.invalidateQueries({ queryKey: ["posts"] });
+    } catch (e: any) {
+      toast.error(e?.message || "Falha ao atualizar.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -61,7 +152,7 @@ function Dashboard() {
             className="hover:border-primary/50 hover:shadow-sm cursor-pointer transition-all"
           />
         </Link>
-        <StatCard icon={CalendarPlus} label="Publicados" value={published.length} />
+        <StatCard icon={CalendarPlus} label="Publicados" value={posts.filter((p: any) => p.status === "published").length} />
         <Link to="/accounts" className="block hover:no-underline">
           <StatCard
             icon={Users}
@@ -85,29 +176,165 @@ function Dashboard() {
         </div>
       )}
 
+      {/* Próximas publicações */}
       <div>
         <h2 className="mb-3 font-semibold text-foreground">Próximas publicações</h2>
-        {upcoming.length === 0 ? (
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        ) : upcoming.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhuma publicação agendada.</p>
         ) : (
           <div className="space-y-2">
-            {upcoming.slice(0, 8).map((p: any) => (
-              <div key={p.id} className="flex items-center justify-between rounded-lg border bg-card p-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {p.caption || "(sem legenda)"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    @{p.instagram_accounts?.username ?? "—"} ·{" "}
-                    {POST_TYPE_LABELS[p.post_type as PostType]} ·{" "}
-                    {new Date(p.scheduled_at).toLocaleString("pt-BR")}
-                  </p>
-                </div>
-                <Badge variant={statusVariant[p.status]}>{POST_STATUS_LABELS[p.status]}</Badge>
-              </div>
+            {upcoming.map((p: any) => (
+              <PostItem
+                key={p.id}
+                post={p}
+                publishingId={publishingId}
+                handlePublishNow={handlePublishNow}
+                startEdit={startEdit}
+                handleDelete={handleDelete}
+              />
             ))}
           </div>
         )}
+      </div>
+
+      {/* Histórico */}
+      <div>
+        <h2 className="mb-3 font-semibold text-foreground">Histórico de publicações</h2>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        ) : history.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma publicação no histórico.</p>
+        ) : (
+          <div className="space-y-2">
+            {history.slice(0, 10).map((p: any) => (
+              <PostItem
+                key={p.id}
+                post={p}
+                publishingId={publishingId}
+                handlePublishNow={handlePublishNow}
+                startEdit={startEdit}
+                handleDelete={handleDelete}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Dialog para Edição */}
+      <Dialog open={editingPost !== null} onOpenChange={(open) => !open && setEditingPost(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar agendamento</DialogTitle>
+          </DialogHeader>
+          {editingPost && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Legenda</Label>
+                <Textarea
+                  value={editCaption}
+                  onChange={(e) => setEditCaption(e.target.value)}
+                  placeholder="Escreva a legenda..."
+                  rows={4}
+                  maxLength={2200}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data e hora</Label>
+                <Input
+                  type="datetime-local"
+                  value={editScheduledAt}
+                  onChange={(e) => setEditScheduledAt(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditingPost(null)} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={saving} className="gap-2">
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />} Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function PostItem({
+  post,
+  publishingId,
+  handlePublishNow,
+  startEdit,
+  handleDelete,
+}: {
+  post: any;
+  publishingId: string | null;
+  handlePublishNow: (id: string) => void;
+  startEdit: (post: any) => void;
+  handleDelete: (id: string) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-lg border bg-card p-3">
+      <div className="min-w-0 flex-1 pr-4">
+        <p className="truncate text-sm font-medium text-foreground">
+          {post.caption || <span className="text-muted-foreground italic">(sem legenda)</span>}
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          @{post.instagram_accounts?.username ?? "—"} ·{" "}
+          {POST_TYPE_LABELS[post.post_type as PostType]} ·{" "}
+          {new Date(post.scheduled_at).toLocaleString("pt-BR")}
+        </p>
+        {post.error_message && (
+          <p className="text-xs text-destructive mt-1 font-medium bg-destructive/5 px-2 py-0.5 rounded border border-destructive/10 inline-block">
+            Erro: {post.error_message}
+          </p>
+        )}
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        <Badge variant={statusVariant[post.status]}>{POST_STATUS_LABELS[post.status]}</Badge>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              {publishingId === post.id ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : (
+                <MoreVertical className="h-4 w-4 text-muted-foreground" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {post.status !== "published" && (
+              <DropdownMenuItem
+                onClick={() => handlePublishNow(post.id)}
+                disabled={publishingId !== null}
+                className="gap-2"
+              >
+                <Play className="h-3.5 w-3.5 text-green-600" /> Publicar agora
+              </DropdownMenuItem>
+            )}
+            {post.status === "scheduled" && (
+              <DropdownMenuItem
+                onClick={() => startEdit(post)}
+                disabled={publishingId !== null}
+                className="gap-2"
+              >
+                <Pencil className="h-3.5 w-3.5" /> Editar
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={() => handleDelete(post.id)}
+              disabled={publishingId !== null}
+              className="gap-2 text-destructive focus:text-destructive"
+            >
+              <Trash className="h-3.5 w-3.5" /> Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
@@ -141,4 +368,5 @@ function StatCard({
     </div>
   );
 }
+
 
