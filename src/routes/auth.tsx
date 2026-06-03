@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +59,17 @@ function AuthPage() {
         <p className="mt-4 text-center text-xs text-muted-foreground">
           Ao continuar, você concorda em conectar suas contas do Instagram Business.
         </p>
+        <div className="mt-6 flex justify-center gap-4 text-xs border-t pt-4 text-muted-foreground">
+          <Link to="/privacy" className="hover:text-foreground hover:underline">
+            Privacidade
+          </Link>
+          <Link to="/terms" className="hover:text-foreground hover:underline">
+            Termos
+          </Link>
+          <Link to="/data-deletion" className="hover:text-foreground hover:underline">
+            Exclusão de Dados
+          </Link>
+        </div>
       </div>
     </div>
   );

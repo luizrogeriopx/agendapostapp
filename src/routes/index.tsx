@@ -32,8 +32,8 @@ function Landing() {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2 font-bold text-foreground">
           <span
             className="flex h-9 w-9 items-center justify-center rounded-xl text-white"
@@ -48,7 +48,7 @@ function Landing() {
         </Link>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6">
+      <main className="mx-auto max-w-5xl px-6 w-full flex-1">
         <section className="py-20 text-center">
           <h1 className="mx-auto max-w-2xl text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
             Agende seu conteúdo no Instagram em um só lugar
@@ -83,6 +83,35 @@ function Landing() {
           ))}
         </section>
       </main>
+
+      <footer className="border-t bg-card mt-auto py-8">
+        <div className="mx-auto max-w-5xl px-6 flex flex-col md:flex-row items-center justify-between gap-6 text-sm text-muted-foreground w-full">
+          <div className="flex items-center gap-2 font-bold text-foreground">
+            <span
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-white"
+              style={{ background: "var(--gradient-brand)" }}
+            >
+              <Instagram className="h-4 w-4" />
+            </span>
+            Agendador IG
+          </div>
+          <div className="flex flex-wrap justify-center gap-6">
+            <Link to="/privacy" className="hover:text-foreground transition-colors">
+              Política de Privacidade
+            </Link>
+            <Link to="/terms" className="hover:text-foreground transition-colors">
+              Termos de Serviço
+            </Link>
+            <Link to="/data-deletion" className="hover:text-foreground transition-colors">
+              Exclusão de Dados
+            </Link>
+          </div>
+          <p className="text-xs">
+            &copy; {new Date().getFullYear()} Agendador IG. Todos os direitos reservados.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
+
