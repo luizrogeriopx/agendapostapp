@@ -39,6 +39,7 @@ import {
   Loader2,
   Sparkles,
   ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -224,7 +225,21 @@ function AutomationsPage() {
           {/* Lista de publicações */}
           {selectedAccountId && (
             <div className="space-y-4">
-              <h2 className="text-lg font-bold text-foreground">Publicações Recentes</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-foreground">Publicações Recentes</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    qc.invalidateQueries({ queryKey: ["instagram-media", selectedAccountId] });
+                    toast.success("Lista de publicações atualizada!");
+                  }}
+                  className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Atualizar
+                </Button>
+              </div>
 
               {loadingMedia ? (
                 <div className="flex h-40 items-center justify-center">
