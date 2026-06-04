@@ -2,7 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Instagram, LayoutDashboard, Users, CalendarPlus, BookOpen, LogOut, ShieldAlert } from "lucide-react";
+import { Instagram, LayoutDashboard, Users, CalendarPlus, BookOpen, LogOut, ShieldAlert, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -12,6 +12,7 @@ const NAV = [
   { to: "/dashboard", label: "Painel", icon: LayoutDashboard },
   { to: "/schedule", label: "Agendar", icon: CalendarPlus },
   { to: "/accounts", label: "Contas", icon: Users },
+  { to: "/automations", label: "Automações", icon: Sparkles },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {

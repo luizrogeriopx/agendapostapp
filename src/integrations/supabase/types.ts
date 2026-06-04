@@ -59,6 +59,69 @@ export type Database = {
         }
         Relationships: []
       }
+      instagram_automations: {
+        Row: {
+          account_id: string
+          comment_reply: string
+          created_at: string
+          dm_reply: string
+          id: string
+          is_active: boolean
+          media_caption: string | null
+          media_id: string
+          media_permalink: string | null
+          media_thumbnail: string | null
+          trigger_words: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          comment_reply: string
+          created_at?: string
+          dm_reply: string
+          id?: string
+          is_active?: boolean
+          media_caption?: string | null
+          media_id: string
+          media_permalink?: string | null
+          media_thumbnail?: string | null
+          trigger_words?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          comment_reply?: string
+          created_at?: string
+          dm_reply?: string
+          id?: string
+          is_active?: boolean
+          media_caption?: string | null
+          media_id?: string
+          media_permalink?: string | null
+          media_thumbnail?: string | null
+          trigger_words?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instagram_automations_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "instagram_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instagram_automations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

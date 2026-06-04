@@ -19,9 +19,11 @@ import { Route as InstagramCallbackRouteImport } from './routes/instagram.callba
 import { Route as AuthenticatedSetupRouteImport } from './routes/_authenticated/setup'
 import { Route as AuthenticatedScheduleRouteImport } from './routes/_authenticated/schedule'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedAutomationsRouteImport } from './routes/_authenticated/automations'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticated/accounts'
 import { Route as ApiPublicPublishDueRouteImport } from './routes/api/public/publish-due'
+import { Route as ApiPublicMetaWebhookRouteImport } from './routes/api/public/meta-webhook'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -72,6 +74,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAutomationsRoute =
+  AuthenticatedAutomationsRouteImport.update({
+    id: '/automations',
+    path: '/automations',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -87,6 +95,11 @@ const ApiPublicPublishDueRoute = ApiPublicPublishDueRouteImport.update({
   path: '/api/public/publish-due',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicMetaWebhookRoute = ApiPublicMetaWebhookRouteImport.update({
+  id: '/api/public/meta-webhook',
+  path: '/api/public/meta-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -96,10 +109,12 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/accounts': typeof AuthenticatedAccountsRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/automations': typeof AuthenticatedAutomationsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/setup': typeof AuthenticatedSetupRoute
   '/instagram/callback': typeof InstagramCallbackRoute
+  '/api/public/meta-webhook': typeof ApiPublicMetaWebhookRoute
   '/api/public/publish-due': typeof ApiPublicPublishDueRoute
 }
 export interface FileRoutesByTo {
@@ -110,10 +125,12 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/accounts': typeof AuthenticatedAccountsRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/automations': typeof AuthenticatedAutomationsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/schedule': typeof AuthenticatedScheduleRoute
   '/setup': typeof AuthenticatedSetupRoute
   '/instagram/callback': typeof InstagramCallbackRoute
+  '/api/public/meta-webhook': typeof ApiPublicMetaWebhookRoute
   '/api/public/publish-due': typeof ApiPublicPublishDueRoute
 }
 export interface FileRoutesById {
@@ -126,10 +143,12 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/_authenticated/accounts': typeof AuthenticatedAccountsRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/automations': typeof AuthenticatedAutomationsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/setup': typeof AuthenticatedSetupRoute
   '/instagram/callback': typeof InstagramCallbackRoute
+  '/api/public/meta-webhook': typeof ApiPublicMetaWebhookRoute
   '/api/public/publish-due': typeof ApiPublicPublishDueRoute
 }
 export interface FileRouteTypes {
@@ -142,10 +161,12 @@ export interface FileRouteTypes {
     | '/terms'
     | '/accounts'
     | '/admin'
+    | '/automations'
     | '/dashboard'
     | '/schedule'
     | '/setup'
     | '/instagram/callback'
+    | '/api/public/meta-webhook'
     | '/api/public/publish-due'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -156,10 +177,12 @@ export interface FileRouteTypes {
     | '/terms'
     | '/accounts'
     | '/admin'
+    | '/automations'
     | '/dashboard'
     | '/schedule'
     | '/setup'
     | '/instagram/callback'
+    | '/api/public/meta-webhook'
     | '/api/public/publish-due'
   id:
     | '__root__'
@@ -171,10 +194,12 @@ export interface FileRouteTypes {
     | '/terms'
     | '/_authenticated/accounts'
     | '/_authenticated/admin'
+    | '/_authenticated/automations'
     | '/_authenticated/dashboard'
     | '/_authenticated/schedule'
     | '/_authenticated/setup'
     | '/instagram/callback'
+    | '/api/public/meta-webhook'
     | '/api/public/publish-due'
   fileRoutesById: FileRoutesById
 }
@@ -186,6 +211,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   InstagramCallbackRoute: typeof InstagramCallbackRoute
+  ApiPublicMetaWebhookRoute: typeof ApiPublicMetaWebhookRoute
   ApiPublicPublishDueRoute: typeof ApiPublicPublishDueRoute
 }
 
@@ -261,6 +287,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/automations': {
+      id: '/_authenticated/automations'
+      path: '/automations'
+      fullPath: '/automations'
+      preLoaderRoute: typeof AuthenticatedAutomationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
@@ -282,12 +315,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPublishDueRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/meta-webhook': {
+      id: '/api/public/meta-webhook'
+      path: '/api/public/meta-webhook'
+      fullPath: '/api/public/meta-webhook'
+      preLoaderRoute: typeof ApiPublicMetaWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccountsRoute: typeof AuthenticatedAccountsRoute
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedAutomationsRoute: typeof AuthenticatedAutomationsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedScheduleRoute: typeof AuthenticatedScheduleRoute
   AuthenticatedSetupRoute: typeof AuthenticatedSetupRoute
@@ -296,6 +337,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccountsRoute: AuthenticatedAccountsRoute,
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedAutomationsRoute: AuthenticatedAutomationsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedScheduleRoute: AuthenticatedScheduleRoute,
   AuthenticatedSetupRoute: AuthenticatedSetupRoute,
@@ -312,6 +354,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   InstagramCallbackRoute: InstagramCallbackRoute,
+  ApiPublicMetaWebhookRoute: ApiPublicMetaWebhookRoute,
   ApiPublicPublishDueRoute: ApiPublicPublishDueRoute,
 }
 export const routeTree = rootRouteImport
