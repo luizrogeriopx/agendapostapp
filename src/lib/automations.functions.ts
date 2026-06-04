@@ -194,17 +194,17 @@ export const getPageSubscription = createServerFn({ method: "POST" })
       );
       const json = await res.json();
 
-      // 2. Fetch token permissions
-      const permRes = await fetch(
-        `${GRAPH_BASE}/me/permissions?access_token=${account.access_token}`
+      // 2. Fetch linked Instagram business account details from Page
+      const pgRes = await fetch(
+        `${GRAPH_BASE}/${account.page_id}?fields=name,instagram_business_account{id,username,name}&access_token=${account.access_token}`
       );
-      const permJson = await permRes.json();
+      const pgJson = await pgRes.json();
 
       return {
-        ok: res.ok && permRes.ok,
+        ok: res.ok && pgRes.ok,
         data: {
           subscriptions: json.data || json,
-          permissions: permJson.data || permJson,
+          pageDetails: pgJson,
         },
       };
     } catch (err: any) {
