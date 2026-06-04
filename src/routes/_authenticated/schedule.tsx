@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { listAccounts } from "@/lib/instagram.functions";
-import { createScheduledPost } from "@/lib/posts.functions";
+import { createScheduledPost, listPosts } from "@/lib/posts.functions";
 import { POST_TYPE_LABELS, type PostType } from "@/lib/meta";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -34,13 +34,105 @@ const STRATEGIC_HOURS = [
   { hour: 20, minute: 45 },
 ];
 
+const isSameCategory = (t1: string, t2: string) => {
+  if ((t1 === "feed" || t1 === "carousel") && (t2 === "feed" || t2 === "carousel")) return true;
+  return t1 === t2;
+};
+
+const getBulkScheduledDates = (
+  bulkMediaLength: number,
+  startDateStr: string,
+  postType: PostType,
+  accountId: string,
+  existingPosts: any[]
+): Date[] => {
+  const dates: Date[] = [];
+  
+  const baseDate = startDateStr ? new Date(startDateStr + "T00:00:00") : new Date();
+  if (!startDateStr) {
+    baseDate.setDate(baseDate.getDate() + 1);
+  }
+
+  const isOccupied = (candidate: Date) => {
+    // 1. Check existing posts from database
+    const hasConflictInDb = existingPosts.some((post) => {
+      const postAccountId = post.account_id || post.instagram_accounts?.id;
+      if (postAccountId !== accountId) return false;
+      if (!isSameCategory(post.post_type, postType)) return false;
+      if (post.status === "failed") return false;
+
+      const postDate = new Date(post.scheduled_at);
+      return (
+        postDate.getFullYear() === candidate.getFullYear() &&
+        postDate.getMonth() === candidate.getMonth() &&
+        postDate.getDate() === candidate.getDate() &&
+        postDate.getHours() === candidate.getHours() &&
+        postDate.getMinutes() === candidate.getMinutes()
+      );
+    });
+
+    if (hasConflictInDb) return true;
+
+    // 2. Check already assigned in this batch
+    const hasConflictInBatch = dates.some((assigned) => {
+      return (
+        assigned.getFullYear() === candidate.getFullYear() &&
+        assigned.getMonth() === candidate.getMonth() &&
+        assigned.getDate() === candidate.getDate() &&
+        assigned.getHours() === candidate.getHours() &&
+        assigned.getMinutes() === candidate.getMinutes()
+      );
+    });
+
+    return hasConflictInBatch;
+  };
+
+  let currentDayOffset = 0;
+
+  for (let i = 0; i < bulkMediaLength; i++) {
+    let found = false;
+    let attempts = 0;
+    
+    while (!found && attempts < 365) {
+      const candidateDay = new Date(baseDate);
+      candidateDay.setDate(candidateDay.getDate() + currentDayOffset);
+
+      for (const timeSlot of STRATEGIC_HOURS) {
+        const candidate = new Date(candidateDay);
+        candidate.setHours(timeSlot.hour, timeSlot.minute, 0, 0);
+
+        if (!isOccupied(candidate)) {
+          dates.push(candidate);
+          found = true;
+          break;
+        }
+      }
+      
+      currentDayOffset++;
+      attempts++;
+    }
+    
+    if (!found) {
+      const fallbackDate = new Date(baseDate);
+      fallbackDate.setDate(fallbackDate.getDate() + i);
+      const timeSlot = STRATEGIC_HOURS[i % STRATEGIC_HOURS.length];
+      fallbackDate.setHours(timeSlot.hour, timeSlot.minute, 0, 0);
+      dates.push(fallbackDate);
+    }
+  }
+
+  return dates;
+};
+
 function SchedulePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const fetchAccounts = useServerFn(listAccounts);
   const createPost = useServerFn(createScheduledPost);
+  const fetchPosts = useServerFn(listPosts);
 
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: () => fetchAccounts() });
+  const { data: existingPosts = [] } = useQuery({ queryKey: ["posts"], queryFn: () => fetchPosts() });
 
   const [scheduleMode, setScheduleMode] = useState<"individual" | "bulk">("individual");
   const [accountId, setAccountId] = useState("");
@@ -67,17 +159,29 @@ function SchedulePage() {
 
   const allowMultiple = postType === "carousel" && scheduleMode === "individual";
 
-  const getBulkScheduledDate = (index: number, startDateStr: string) => {
-    const baseDate = startDateStr ? new Date(startDateStr + "T00:00:00") : new Date();
-    if (!startDateStr) {
-      baseDate.setDate(baseDate.getDate() + 1);
-    }
-    const date = new Date(baseDate);
-    date.setDate(date.getDate() + index);
-    const timeSlot = STRATEGIC_HOURS[index % STRATEGIC_HOURS.length];
-    date.setHours(timeSlot.hour, timeSlot.minute, 0, 0);
-    return date;
-  };
+  const bulkScheduledDates = useMemo(() => {
+    return getBulkScheduledDates(bulkMedia.length, bulkStartDate, postType, accountId, existingPosts);
+  }, [bulkMedia.length, bulkStartDate, postType, accountId, existingPosts]);
+
+  const individualConflict = useMemo(() => {
+    if (!scheduledAt || !accountId) return false;
+    const candidate = new Date(scheduledAt);
+    return existingPosts.some((post: any) => {
+      const postAccountId = post.account_id || post.instagram_accounts?.id;
+      if (postAccountId !== accountId) return false;
+      if (!isSameCategory(post.post_type, postType)) return false;
+      if (post.status === "failed") return false;
+
+      const postDate = new Date(post.scheduled_at);
+      return (
+        postDate.getFullYear() === candidate.getFullYear() &&
+        postDate.getMonth() === candidate.getMonth() &&
+        postDate.getDate() === candidate.getDate() &&
+        postDate.getHours() === candidate.getHours() &&
+        postDate.getMinutes() === candidate.getMinutes()
+      );
+    });
+  }, [scheduledAt, accountId, postType, existingPosts]);
 
   const handleUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -157,7 +261,7 @@ function SchedulePage() {
     setSubmitting(true);
     try {
       const promises = bulkMedia.map((m, idx) => {
-        const scheduledTime = getBulkScheduledDate(idx, bulkStartDate).toISOString();
+        const scheduledTime = bulkScheduledDates[idx].toISOString();
         return createPost({
           data: {
             accountId,
@@ -368,6 +472,11 @@ function SchedulePage() {
                 value={scheduledAt}
                 onChange={(e) => setScheduledAt(e.target.value)}
               />
+              {individualConflict && (
+                <p className="text-xs text-amber-500 font-medium mt-1">
+                  ⚠️ Já existe uma publicação deste tipo agendada para este horário. Escolha outro horário para evitar conflitos.
+                </p>
+              )}
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -402,7 +511,7 @@ function SchedulePage() {
                       <div>
                         <p className="text-xs font-semibold text-foreground">Post {idx + 1}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Agendado: <span className="font-semibold text-foreground">{getBulkScheduledDate(idx, bulkStartDate).toLocaleString("pt-BR")}</span>
+                          Agendado: <span className="font-semibold text-foreground">{bulkScheduledDates[idx]?.toLocaleString("pt-BR")}</span>
                         </p>
                       </div>
                     </div>

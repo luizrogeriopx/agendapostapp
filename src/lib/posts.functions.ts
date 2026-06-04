@@ -54,7 +54,7 @@ export const listPosts = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("scheduled_posts")
       .select(
-        "id, post_type, caption, media_urls, scheduled_at, status, error_message, published_at, created_at, instagram_accounts(username, name, profile_picture_url)",
+        "id, post_type, caption, media_urls, scheduled_at, status, error_message, published_at, created_at, account_id, instagram_accounts(username, name, profile_picture_url)",
       )
       .order("scheduled_at", { ascending: true });
     if (error) throw new Error(error.message);
