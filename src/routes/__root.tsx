@@ -91,11 +91,29 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:description", content: "Agendamento de post, stories e reels." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f254efd4-c861-4bdc-846c-c2889d6906ce/id-preview-b9b3b6f2--c484193d-2443-43ef-9c98-040de9ada5ae.lovable.app-1780440877815.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/f254efd4-c861-4bdc-846c-c2889d6906ce/id-preview-b9b3b6f2--c484193d-2443-43ef-9c98-040de9ada5ae.lovable.app-1780440877815.png" },
+      // PWA Metas
+      { name: "theme-color", content: "#bc1888" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      // PWA Links
+      {
+        rel: "manifest",
+        href: "/manifest.json",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/icons/icon.svg",
+      },
+      {
+        rel: "icon",
+        type: "image/svg+xml",
+        href: "/icons/icon.svg",
       },
     ],
   }),
@@ -132,6 +150,17 @@ function RootComponent() {
     });
     return () => subscription.unsubscribe();
   }, [router, queryClient]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").then(
+          (reg) => console.log("Service Worker registered successfully with scope:", reg.scope),
+          (err) => console.error("Service Worker registration failed:", err)
+        );
+      });
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

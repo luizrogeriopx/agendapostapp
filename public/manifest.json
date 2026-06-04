@@ -1,0 +1,28 @@
+{
+  "short_name": "AgendadorIG",
+  "name": "Agendador de Instagram",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/dashboard",
+  "background_color": "#ffffff",
+  "theme_color": "#bc1888",
+  "display": "standalone",
+  "orientation": "portrait"
+}
