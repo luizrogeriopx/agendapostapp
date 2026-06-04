@@ -26,16 +26,31 @@ export const Route = createFileRoute("/api/public/meta-webhook")({
 
       // 2. Incoming Event Processing (POST)
       POST: async ({ request }) => {
+        let payload: any = null;
         try {
-          const payload = await request.json();
+          payload = await request.json();
           console.log("Received Meta Webhook Event:", JSON.stringify(payload, null, 2));
+        } catch (jsonErr: any) {
+          console.error("Failed to parse JSON body:", jsonErr);
+          return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+        }
 
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+        // Write payload to database for live debugging
+        try {
+          await supabaseAdmin
+            .from("webhook_logs")
+            .insert({ payload });
+        } catch (logErr) {
+          console.error("Failed to write to webhook_logs:", logErr);
+        }
+
+        try {
           // Ensure it is an instagram object webhook
           if (payload.object !== "instagram") {
             return Response.json({ ok: true, ignored: "non-instagram object" });
           }
-
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
           for (const entry of payload.entry || []) {
             const igUserId = entry.id; // Instagram Business Account ID

@@ -149,6 +149,27 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_logs: {
+        Row: {
+          error: string | null
+          id: string
+          payload: Json
+          received_at: string
+        }
+        Insert: {
+          error?: string | null
+          id?: string
+          payload: Json
+          received_at?: string
+        }
+        Update: {
+          error?: string | null
+          id?: string
+          payload?: Json
+          received_at?: string
+        }
+        Relationships: []
+      }
       scheduled_posts: {
         Row: {
           account_id: string
