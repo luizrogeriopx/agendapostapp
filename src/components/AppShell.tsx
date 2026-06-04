@@ -12,7 +12,6 @@ const NAV = [
   { to: "/dashboard", label: "Painel", icon: LayoutDashboard },
   { to: "/schedule", label: "Agendar", icon: CalendarPlus },
   { to: "/accounts", label: "Contas", icon: Users },
-  { to: "/setup", label: "Configurar Meta", icon: BookOpen },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -29,7 +28,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const navItems = [
     ...NAV,
-    ...(isAdmin ? [{ to: "/admin", label: "Administração", icon: ShieldAlert }] : []),
+    ...(isAdmin
+      ? [
+          { to: "/setup", label: "Configurar Meta", icon: BookOpen },
+          { to: "/admin", label: "Administração", icon: ShieldAlert },
+        ]
+      : []),
   ];
 
   const logout = async () => {

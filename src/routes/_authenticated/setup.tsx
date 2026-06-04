@@ -1,10 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { getMetaConfig } from "@/lib/instagram.functions";
+import { checkIsAdmin } from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Circle, Copy, ExternalLink } from "lucide-react";
+import { CheckCircle2, Circle, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/setup")({
@@ -13,13 +14,41 @@ export const Route = createFileRoute("/_authenticated/setup")({
 });
 
 function SetupPage() {
+  const navigate = useNavigate();
+  const getIsAdmin = useServerFn(checkIsAdmin);
+  
+  const { data: adminCheck, isLoading: checkingAdmin } = useQuery({
+    queryKey: ["admin-check"],
+    queryFn: () => getIsAdmin(),
+  });
+
   const fetchConfig = useServerFn(getMetaConfig);
-  const { data: config } = useQuery({ queryKey: ["meta-config"], queryFn: () => fetchConfig() });
+  const { data: config } = useQuery({ queryKey: ["meta-config"], queryFn: () => fetchConfig(), enabled: !!adminCheck?.isAdmin });
   const [redirectUri, setRedirectUri] = useState("");
 
+  // Security: redirect if not admin
   useEffect(() => {
-    setRedirectUri(`${window.location.origin}/instagram/callback`);
-  }, []);
+    if (!checkingAdmin && adminCheck && !adminCheck.isAdmin) {
+      toast.error("Você não tem permissão para acessar esta página.");
+      navigate({ to: "/dashboard", replace: true });
+    }
+  }, [adminCheck, checkingAdmin, navigate]);
+
+  useEffect(() => {
+    if (adminCheck?.isAdmin) {
+      setRedirectUri(`${window.location.origin}/instagram/callback`);
+    }
+  }, [adminCheck]);
+
+  if (checkingAdmin) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!adminCheck?.isAdmin) return null;
 
   const copy = (text: string) => {
     navigator.clipboard.writeText(text);
