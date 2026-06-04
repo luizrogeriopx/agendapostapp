@@ -24,6 +24,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticated/accounts'
 import { Route as ApiPublicPublishDueRouteImport } from './routes/api/public/publish-due'
 import { Route as ApiPublicMetaWebhookRouteImport } from './routes/api/public/meta-webhook'
+import { Route as ApiPublicDebugDbRouteImport } from './routes/api/public/debug-db'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -100,6 +101,11 @@ const ApiPublicMetaWebhookRoute = ApiPublicMetaWebhookRouteImport.update({
   path: '/api/public/meta-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicDebugDbRoute = ApiPublicDebugDbRouteImport.update({
+  id: '/api/public/debug-db',
+  path: '/api/public/debug-db',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/setup': typeof AuthenticatedSetupRoute
   '/instagram/callback': typeof InstagramCallbackRoute
+  '/api/public/debug-db': typeof ApiPublicDebugDbRoute
   '/api/public/meta-webhook': typeof ApiPublicMetaWebhookRoute
   '/api/public/publish-due': typeof ApiPublicPublishDueRoute
 }
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/schedule': typeof AuthenticatedScheduleRoute
   '/setup': typeof AuthenticatedSetupRoute
   '/instagram/callback': typeof InstagramCallbackRoute
+  '/api/public/debug-db': typeof ApiPublicDebugDbRoute
   '/api/public/meta-webhook': typeof ApiPublicMetaWebhookRoute
   '/api/public/publish-due': typeof ApiPublicPublishDueRoute
 }
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/_authenticated/schedule': typeof AuthenticatedScheduleRoute
   '/_authenticated/setup': typeof AuthenticatedSetupRoute
   '/instagram/callback': typeof InstagramCallbackRoute
+  '/api/public/debug-db': typeof ApiPublicDebugDbRoute
   '/api/public/meta-webhook': typeof ApiPublicMetaWebhookRoute
   '/api/public/publish-due': typeof ApiPublicPublishDueRoute
 }
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/setup'
     | '/instagram/callback'
+    | '/api/public/debug-db'
     | '/api/public/meta-webhook'
     | '/api/public/publish-due'
   fileRoutesByTo: FileRoutesByTo
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/setup'
     | '/instagram/callback'
+    | '/api/public/debug-db'
     | '/api/public/meta-webhook'
     | '/api/public/publish-due'
   id:
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/_authenticated/schedule'
     | '/_authenticated/setup'
     | '/instagram/callback'
+    | '/api/public/debug-db'
     | '/api/public/meta-webhook'
     | '/api/public/publish-due'
   fileRoutesById: FileRoutesById
@@ -211,6 +223,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   InstagramCallbackRoute: typeof InstagramCallbackRoute
+  ApiPublicDebugDbRoute: typeof ApiPublicDebugDbRoute
   ApiPublicMetaWebhookRoute: typeof ApiPublicMetaWebhookRoute
   ApiPublicPublishDueRoute: typeof ApiPublicPublishDueRoute
 }
@@ -322,6 +335,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMetaWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/debug-db': {
+      id: '/api/public/debug-db'
+      path: '/api/public/debug-db'
+      fullPath: '/api/public/debug-db'
+      preLoaderRoute: typeof ApiPublicDebugDbRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -354,6 +374,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   InstagramCallbackRoute: InstagramCallbackRoute,
+  ApiPublicDebugDbRoute: ApiPublicDebugDbRoute,
   ApiPublicMetaWebhookRoute: ApiPublicMetaWebhookRoute,
   ApiPublicPublishDueRoute: ApiPublicPublishDueRoute,
 }
