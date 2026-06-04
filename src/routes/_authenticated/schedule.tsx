@@ -28,11 +28,23 @@ export const Route = createFileRoute("/_authenticated/schedule")({
 
 type MediaItem = { path: string; url: string; isVideo: boolean };
 
-const STRATEGIC_HOURS = [
-  { hour: 12, minute: 15 },
-  { hour: 18, minute: 30 },
-  { hour: 20, minute: 45 },
+const STRATEGIC_SLOTS = [
+  { startHour: 8, startMinute: 0, endHour: 8, endMinute: 15 },
+  { startHour: 12, startMinute: 15, endHour: 12, endMinute: 30 },
+  { startHour: 18, startMinute: 30, endHour: 18, endMinute: 45 },
+  { startHour: 20, startMinute: 45, endHour: 21, endMinute: 0 },
 ];
+
+const isTimeInSlot = (date: Date, slot: typeof STRATEGIC_SLOTS[number]) => {
+  const minutes = date.getHours() * 60 + date.getMinutes();
+  const startMinutes = slot.startHour * 60 + slot.startMinute;
+  const endMinutes = slot.endHour * 60 + slot.endMinute;
+  return minutes >= startMinutes && minutes <= endMinutes;
+};
+
+const getMatchingSlot = (date: Date) => {
+  return STRATEGIC_SLOTS.find(slot => isTimeInSlot(date, slot));
+};
 
 const isSameCategory = (t1: string, t2: string) => {
   if ((t1 === "feed" || t1 === "carousel") && (t2 === "feed" || t2 === "carousel")) return true;
@@ -53,7 +65,7 @@ const getBulkScheduledDates = (
     baseDate.setDate(baseDate.getDate() + 1);
   }
 
-  const isOccupied = (candidate: Date) => {
+  const isOccupied = (candidateDay: Date, slot: typeof STRATEGIC_SLOTS[number]) => {
     // 1. Check existing posts from database
     const hasConflictInDb = existingPosts.some((post) => {
       const postAccountId = post.account_id || post.instagram_accounts?.id;
@@ -62,26 +74,24 @@ const getBulkScheduledDates = (
       if (post.status === "failed") return false;
 
       const postDate = new Date(post.scheduled_at);
-      return (
-        postDate.getFullYear() === candidate.getFullYear() &&
-        postDate.getMonth() === candidate.getMonth() &&
-        postDate.getDate() === candidate.getDate() &&
-        postDate.getHours() === candidate.getHours() &&
-        postDate.getMinutes() === candidate.getMinutes()
-      );
+      const isSameDay =
+        postDate.getFullYear() === candidateDay.getFullYear() &&
+        postDate.getMonth() === candidateDay.getMonth() &&
+        postDate.getDate() === candidateDay.getDate();
+
+      return isSameDay && isTimeInSlot(postDate, slot);
     });
 
     if (hasConflictInDb) return true;
 
     // 2. Check already assigned in this batch
     const hasConflictInBatch = dates.some((assigned) => {
-      return (
-        assigned.getFullYear() === candidate.getFullYear() &&
-        assigned.getMonth() === candidate.getMonth() &&
-        assigned.getDate() === candidate.getDate() &&
-        assigned.getHours() === candidate.getHours() &&
-        assigned.getMinutes() === candidate.getMinutes()
-      );
+      const isSameDay =
+        assigned.getFullYear() === candidateDay.getFullYear() &&
+        assigned.getMonth() === candidateDay.getMonth() &&
+        assigned.getDate() === candidateDay.getDate();
+
+      return isSameDay && isTimeInSlot(assigned, slot);
     });
 
     return hasConflictInBatch;
@@ -97,11 +107,10 @@ const getBulkScheduledDates = (
       const candidateDay = new Date(baseDate);
       candidateDay.setDate(candidateDay.getDate() + currentDayOffset);
 
-      for (const timeSlot of STRATEGIC_HOURS) {
-        const candidate = new Date(candidateDay);
-        candidate.setHours(timeSlot.hour, timeSlot.minute, 0, 0);
-
-        if (!isOccupied(candidate)) {
+      for (const slot of STRATEGIC_SLOTS) {
+        if (!isOccupied(candidateDay, slot)) {
+          const candidate = new Date(candidateDay);
+          candidate.setHours(slot.startHour, slot.startMinute, 0, 0);
           dates.push(candidate);
           found = true;
           break;
@@ -115,8 +124,8 @@ const getBulkScheduledDates = (
     if (!found) {
       const fallbackDate = new Date(baseDate);
       fallbackDate.setDate(fallbackDate.getDate() + i);
-      const timeSlot = STRATEGIC_HOURS[i % STRATEGIC_HOURS.length];
-      fallbackDate.setHours(timeSlot.hour, timeSlot.minute, 0, 0);
+      const slot = STRATEGIC_SLOTS[i % STRATEGIC_SLOTS.length];
+      fallbackDate.setHours(slot.startHour, slot.startMinute, 0, 0);
       dates.push(fallbackDate);
     }
   }
@@ -166,6 +175,8 @@ function SchedulePage() {
   const individualConflict = useMemo(() => {
     if (!scheduledAt || !accountId) return false;
     const candidate = new Date(scheduledAt);
+    const candidateSlot = getMatchingSlot(candidate);
+
     return existingPosts.some((post: any) => {
       const postAccountId = post.account_id || post.instagram_accounts?.id;
       if (postAccountId !== accountId) return false;
@@ -173,13 +184,21 @@ function SchedulePage() {
       if (post.status === "failed") return false;
 
       const postDate = new Date(post.scheduled_at);
-      return (
+      const isSameDay =
         postDate.getFullYear() === candidate.getFullYear() &&
         postDate.getMonth() === candidate.getMonth() &&
-        postDate.getDate() === candidate.getDate() &&
-        postDate.getHours() === candidate.getHours() &&
-        postDate.getMinutes() === candidate.getMinutes()
-      );
+        postDate.getDate() === candidate.getDate();
+
+      if (!isSameDay) return false;
+
+      if (candidateSlot) {
+        return isTimeInSlot(postDate, candidateSlot);
+      } else {
+        return (
+          postDate.getHours() === candidate.getHours() &&
+          postDate.getMinutes() === candidate.getMinutes()
+        );
+      }
     });
   }, [scheduledAt, accountId, postType, existingPosts]);
 
