@@ -58,7 +58,49 @@ export const listPosts = createServerFn({ method: "GET" })
       )
       .order("scheduled_at", { ascending: true });
     if (error) throw new Error(error.message);
-    return data ?? [];
+
+    const posts = data ?? [];
+    if (posts.length === 0) return [];
+
+    // Collect first path of each post to batch generate signed URLs
+    const pathsToSign: string[] = [];
+    const pathMap = new Map<string, string>(); // path -> post.id
+
+    for (const post of posts) {
+      const mediaList = post.media_urls as string[] | null;
+      if (mediaList && mediaList.length > 0) {
+        const firstPath = mediaList[0];
+        if (firstPath) {
+          pathsToSign.push(firstPath);
+          pathMap.set(firstPath, post.id);
+        }
+      }
+    }
+
+    if (pathsToSign.length > 0) {
+      const { data: signedData, error: signedErr } = await context.supabase.storage
+        .from("post-media")
+        .createSignedUrls(pathsToSign, 3600);
+
+      if (!signedErr && signedData) {
+        const urlMap = new Map<string, string>(); // post.id -> signedUrl
+        for (const item of signedData) {
+          if (item.signedUrl && item.path) {
+            const postId = pathMap.get(item.path);
+            if (postId) {
+              urlMap.set(postId, item.signedUrl);
+            }
+          }
+        }
+
+        // Attach thumbnailUrl to each post object
+        for (const post of posts) {
+          (post as any).thumbnailUrl = urlMap.get(post.id) || null;
+        }
+      }
+    }
+
+    return posts;
   });
 
 export const deletePost = createServerFn({ method: "POST" })

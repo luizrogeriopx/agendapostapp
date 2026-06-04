@@ -277,22 +277,42 @@ function PostItem({
   startEdit: (post: any) => void;
   handleDelete: (id: string) => void;
 }) {
+  const isVideo =
+    post.post_type === "reel" ||
+    (post.media_urls?.[0] &&
+      /\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(post.media_urls[0]));
+
   return (
     <div className="flex items-center justify-between rounded-lg border bg-card p-3">
-      <div className="min-w-0 flex-1 pr-4">
-        <p className="truncate text-sm font-medium text-foreground">
-          {post.caption || <span className="text-muted-foreground italic">(sem legenda)</span>}
-        </p>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          @{post.instagram_accounts?.username ?? "—"} ·{" "}
-          {POST_TYPE_LABELS[post.post_type as PostType]} ·{" "}
-          {new Date(post.scheduled_at).toLocaleString("pt-BR")}
-        </p>
-        {post.error_message && (
-          <p className="text-xs text-destructive mt-1 font-medium bg-destructive/5 px-2 py-0.5 rounded border border-destructive/10 inline-block">
-            Erro: {post.error_message}
-          </p>
+      <div className="flex items-center gap-3 min-w-0 flex-1 pr-4">
+        {post.thumbnailUrl ? (
+          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border bg-muted">
+            {isVideo ? (
+              <video src={post.thumbnailUrl} className="h-full w-full object-cover" preload="metadata" />
+            ) : (
+              <img src={post.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+            )}
+          </div>
+        ) : (
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground text-[10px] font-bold uppercase">
+            {post.post_type.substring(0, 4)}
+          </div>
         )}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-foreground">
+            {post.caption || <span className="text-muted-foreground italic">(sem legenda)</span>}
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            @{post.instagram_accounts?.username ?? "—"} ·{" "}
+            {POST_TYPE_LABELS[post.post_type as PostType]} ·{" "}
+            {new Date(post.scheduled_at).toLocaleString("pt-BR")}
+          </p>
+          {post.error_message && (
+            <p className="text-xs text-destructive mt-1 font-medium bg-destructive/5 px-2 py-0.5 rounded border border-destructive/10 inline-block">
+              Erro: {post.error_message}
+            </p>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-3 shrink-0">
         <Badge variant={statusVariant[post.status]}>{POST_STATUS_LABELS[post.status]}</Badge>
