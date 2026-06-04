@@ -7,6 +7,7 @@ import {
   listInstagramMedia,
   saveAutomation,
   deleteAutomation,
+  getPageSubscription,
 } from "@/lib/automations.functions";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -61,6 +62,25 @@ function AutomationsPage() {
 
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [activeMedia, setActiveMedia] = useState<any | null>(null);
+  const [diagnosing, setDiagnosing] = useState(false);
+  const fetchSubscription = useServerFn(getPageSubscription);
+
+  const handleDiagnose = async () => {
+    if (!selectedAccountId) return;
+    setDiagnosing(true);
+    try {
+      const res = await fetchSubscription({ data: { accountId: selectedAccountId } });
+      if (res.ok) {
+        toast.info("Status de conexão do Webhook: " + JSON.stringify(res.data, null, 2));
+      } else {
+        toast.error("Erro no diagnóstico: " + JSON.stringify(res.error || res.data));
+      }
+    } catch (e: any) {
+      toast.error("Falha ao diagnosticar: " + e.message);
+    } finally {
+      setDiagnosing(false);
+    }
+  };
 
   // Form states
   const [triggerWords, setTriggerWords] = useState("");
@@ -166,18 +186,39 @@ function AutomationsPage() {
               <Label className="text-sm font-semibold">Selecione o perfil do Instagram</Label>
               <p className="text-xs text-muted-foreground">Mostraremos as últimas publicações deste perfil.</p>
             </div>
-            <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-              <SelectTrigger className="w-full sm:w-64">
-                <SelectValue placeholder="Escolher Perfil" />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map((a: any) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    @{a.username ?? a.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto items-stretch sm:items-center">
+              <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                <SelectTrigger className="w-full sm:w-64">
+                  <SelectValue placeholder="Escolher Perfil" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((a: any) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      @{a.username ?? a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedAccountId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDiagnose}
+                  disabled={diagnosing}
+                  className="gap-1.5"
+                >
+                  {diagnosing ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Diagnosticando...
+                    </>
+                  ) : (
+                    <>
+                      <Settings2 className="h-3.5 w-3.5" /> Testar Conexão
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Lista de publicações */}

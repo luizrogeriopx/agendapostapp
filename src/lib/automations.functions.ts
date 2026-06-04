@@ -169,3 +169,31 @@ export const deleteAutomation = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// 5. Retrieves current subscription status of a Page to check for diagnostic connection
+export const getPageSubscription = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ accountId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+
+    const { data: account, error: accErr } = await supabase
+      .from("instagram_accounts")
+      .select("page_id, access_token")
+      .eq("id", data.accountId)
+      .single();
+
+    if (accErr || !account || !account.page_id || !account.access_token) {
+      throw new Error("Página ou token de acesso não encontrados para esta conta.");
+    }
+
+    try {
+      const res = await fetch(
+        `${GRAPH_BASE}/${account.page_id}/subscribed_apps?access_token=${account.access_token}`
+      );
+      const json = await res.json();
+      return { ok: res.ok, data: json.data || json };
+    } catch (err: any) {
+      return { ok: false, error: err.message };
+    }
+  });
