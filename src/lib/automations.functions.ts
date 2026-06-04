@@ -188,11 +188,25 @@ export const getPageSubscription = createServerFn({ method: "POST" })
     }
 
     try {
+      // 1. Fetch subscribed apps
       const res = await fetch(
         `${GRAPH_BASE}/${account.page_id}/subscribed_apps?access_token=${account.access_token}`
       );
       const json = await res.json();
-      return { ok: res.ok, data: json.data || json };
+
+      // 2. Fetch token permissions
+      const permRes = await fetch(
+        `${GRAPH_BASE}/me/permissions?access_token=${account.access_token}`
+      );
+      const permJson = await permRes.json();
+
+      return {
+        ok: res.ok && permRes.ok,
+        data: {
+          subscriptions: json.data || json,
+          permissions: permJson.data || permJson,
+        },
+      };
     } catch (err: any) {
       return { ok: false, error: err.message };
     }
