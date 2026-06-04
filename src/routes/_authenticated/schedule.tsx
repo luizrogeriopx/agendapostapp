@@ -29,22 +29,11 @@ export const Route = createFileRoute("/_authenticated/schedule")({
 type MediaItem = { path: string; url: string; isVideo: boolean };
 
 const STRATEGIC_SLOTS = [
-  { startHour: 8, startMinute: 0, endHour: 8, endMinute: 15 },
-  { startHour: 12, startMinute: 15, endHour: 12, endMinute: 30 },
-  { startHour: 18, startMinute: 30, endHour: 18, endMinute: 45 },
-  { startHour: 20, startMinute: 45, endHour: 21, endMinute: 0 },
+  { startHour: 8, startMinute: 0 },
+  { startHour: 12, startMinute: 15 },
+  { startHour: 18, startMinute: 30 },
+  { startHour: 20, startMinute: 45 },
 ];
-
-const isTimeInSlot = (date: Date, slot: typeof STRATEGIC_SLOTS[number]) => {
-  const minutes = date.getHours() * 60 + date.getMinutes();
-  const startMinutes = slot.startHour * 60 + slot.startMinute;
-  const endMinutes = slot.endHour * 60 + slot.endMinute;
-  return minutes >= startMinutes && minutes <= endMinutes;
-};
-
-const getMatchingSlot = (date: Date) => {
-  return STRATEGIC_SLOTS.find(slot => isTimeInSlot(date, slot));
-};
 
 const isSameCategory = (t1: string, t2: string) => {
   if ((t1 === "feed" || t1 === "carousel") && (t2 === "feed" || t2 === "carousel")) return true;
@@ -65,7 +54,7 @@ const getBulkScheduledDates = (
     baseDate.setDate(baseDate.getDate() + 1);
   }
 
-  const isOccupied = (candidateDay: Date, slot: typeof STRATEGIC_SLOTS[number]) => {
+  const isTimeOccupied = (time: Date) => {
     // 1. Check existing posts from database
     const hasConflictInDb = existingPosts.some((post) => {
       const postAccountId = post.account_id || post.instagram_accounts?.id;
@@ -74,53 +63,71 @@ const getBulkScheduledDates = (
       if (post.status === "failed") return false;
 
       const postDate = new Date(post.scheduled_at);
-      const isSameDay =
-        postDate.getFullYear() === candidateDay.getFullYear() &&
-        postDate.getMonth() === candidateDay.getMonth() &&
-        postDate.getDate() === candidateDay.getDate();
-
-      return isSameDay && isTimeInSlot(postDate, slot);
+      return (
+        postDate.getFullYear() === time.getFullYear() &&
+        postDate.getMonth() === time.getMonth() &&
+        postDate.getDate() === time.getDate() &&
+        postDate.getHours() === time.getHours() &&
+        postDate.getMinutes() === time.getMinutes()
+      );
     });
 
     if (hasConflictInDb) return true;
 
     // 2. Check already assigned in this batch
     const hasConflictInBatch = dates.some((assigned) => {
-      const isSameDay =
-        assigned.getFullYear() === candidateDay.getFullYear() &&
-        assigned.getMonth() === candidateDay.getMonth() &&
-        assigned.getDate() === candidateDay.getDate();
-
-      return isSameDay && isTimeInSlot(assigned, slot);
+      return (
+        assigned.getFullYear() === time.getFullYear() &&
+        assigned.getMonth() === time.getMonth() &&
+        assigned.getDate() === time.getDate() &&
+        assigned.getHours() === time.getHours() &&
+        assigned.getMinutes() === time.getMinutes()
+      );
     });
 
     return hasConflictInBatch;
   };
 
-  let currentDayOffset = 0;
-
   for (let i = 0; i < bulkMediaLength; i++) {
     let found = false;
-    let attempts = 0;
-    
-    while (!found && attempts < 365) {
-      const candidateDay = new Date(baseDate);
-      candidateDay.setDate(candidateDay.getDate() + currentDayOffset);
+    let dayOffset = i;
+    let dayAttempts = 0;
 
-      for (const slot of STRATEGIC_SLOTS) {
-        if (!isOccupied(candidateDay, slot)) {
-          const candidate = new Date(candidateDay);
-          candidate.setHours(slot.startHour, slot.startMinute, 0, 0);
-          dates.push(candidate);
-          found = true;
-          break;
+    while (!found && dayAttempts < 365) {
+      const candidateDay = new Date(baseDate);
+      candidateDay.setDate(candidateDay.getDate() + dayOffset);
+
+      // Cycle strategic slots to distribute posts evenly across day intervals
+      const preferredSlotIndex = i % STRATEGIC_SLOTS.length;
+
+      for (let s = 0; s < STRATEGIC_SLOTS.length; s++) {
+        const slotIndex = (preferredSlotIndex + s) % STRATEGIC_SLOTS.length;
+        const slot = STRATEGIC_SLOTS[slotIndex];
+
+        const slotStart = new Date(candidateDay);
+        slotStart.setHours(slot.startHour, slot.startMinute, 0, 0);
+
+        // Within this 15-minute slot, find a free minute (0 to 15)
+        for (let m = 0; m <= 15; m++) {
+          const candidateTime = new Date(slotStart);
+          candidateTime.setMinutes(candidateTime.getMinutes() + m);
+
+          if (!isTimeOccupied(candidateTime)) {
+            dates.push(candidateTime);
+            found = true;
+            break;
+          }
         }
+
+        if (found) break;
       }
-      
-      currentDayOffset++;
-      attempts++;
+
+      if (!found) {
+        dayOffset++;
+        dayAttempts++;
+      }
     }
-    
+
     if (!found) {
       const fallbackDate = new Date(baseDate);
       fallbackDate.setDate(fallbackDate.getDate() + i);
@@ -175,8 +182,6 @@ function SchedulePage() {
   const individualConflict = useMemo(() => {
     if (!scheduledAt || !accountId) return false;
     const candidate = new Date(scheduledAt);
-    const candidateSlot = getMatchingSlot(candidate);
-
     return existingPosts.some((post: any) => {
       const postAccountId = post.account_id || post.instagram_accounts?.id;
       if (postAccountId !== accountId) return false;
@@ -184,21 +189,13 @@ function SchedulePage() {
       if (post.status === "failed") return false;
 
       const postDate = new Date(post.scheduled_at);
-      const isSameDay =
+      return (
         postDate.getFullYear() === candidate.getFullYear() &&
         postDate.getMonth() === candidate.getMonth() &&
-        postDate.getDate() === candidate.getDate();
-
-      if (!isSameDay) return false;
-
-      if (candidateSlot) {
-        return isTimeInSlot(postDate, candidateSlot);
-      } else {
-        return (
-          postDate.getHours() === candidate.getHours() &&
-          postDate.getMinutes() === candidate.getMinutes()
-        );
-      }
+        postDate.getDate() === candidate.getDate() &&
+        postDate.getHours() === candidate.getHours() &&
+        postDate.getMinutes() === candidate.getMinutes()
+      );
     });
   }, [scheduledAt, accountId, postType, existingPosts]);
 
