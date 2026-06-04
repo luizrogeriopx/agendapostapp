@@ -20,7 +20,7 @@ const automationSchema = z.object({
 const subscribePageToApp = async (pageId: string, pageToken: string) => {
   try {
     const res = await fetch(
-      `${GRAPH_BASE}/${pageId}/subscribed_apps?subscribed_fields=feed,mention,comments&access_token=${pageToken}`,
+      `${GRAPH_BASE}/${pageId}/subscribed_apps?subscribed_fields=feed&access_token=${pageToken}`,
       { method: "POST" }
     );
     const json = await res.json();
