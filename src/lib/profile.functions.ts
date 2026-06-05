@@ -73,7 +73,9 @@ export const upgradePlan = createServerFn({ method: "POST" })
 
     // Create Stripe Checkout Session in subscription mode
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
+      automatic_payment_methods: {
+        enabled: true,
+      },
       line_items: [
         {
           price_data: {
@@ -159,7 +161,9 @@ export const createInvoicePaymentSession = createServerFn({ method: "POST" })
 
     // Create Stripe Checkout Session in payment mode (one-time payment)
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
+      automatic_payment_methods: {
+        enabled: true,
+      },
       line_items: [
         {
           price_data: {
