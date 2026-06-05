@@ -155,7 +155,6 @@ function SchedulePage() {
   const [postType, setPostType] = useState<PostType>("feed");
   const [caption, setCaption] = useState("");
   const [userTagsInput, setUserTagsInput] = useState("");
-  const [locationIdInput, setLocationIdInput] = useState("");
 
   const parseUserTags = (input: string): string[] => {
     return input
@@ -269,7 +268,6 @@ function SchedulePage() {
           mediaPaths: media.map((m) => m.path),
           scheduledAt: new Date(scheduledAt).toISOString(),
           userTags,
-          locationId: locationIdInput.trim() || undefined,
         },
       });
       toast.success("Publicação agendada!");
@@ -301,7 +299,6 @@ function SchedulePage() {
             mediaPaths: [m.path],
             scheduledAt: scheduledTime,
             userTags,
-            locationId: locationIdInput.trim() || undefined,
           },
         });
       });
@@ -496,31 +493,18 @@ function SchedulePage() {
             </div>
           )}
 
-          {/* Marcação e Localização (Oculto para Stories) */}
+          {/* Marcação de Perfis (Oculto para Stories) */}
           {postType !== "story" && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1 text-sm font-semibold">Marcação de Perfis</Label>
-                <Input
-                  value={userTagsInput}
-                  onChange={(e) => setUserTagsInput(e.target.value)}
-                  placeholder="Ex: @iesperancagps, @luizrogeriopaixao"
-                />
-                <p className="text-[10px] text-muted-foreground leading-normal">
-                  Separe os perfis por vírgula. As contas marcadas serão notificadas no post.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1 text-sm font-semibold">ID da Localização (Página Facebook)</Label>
-                <Input
-                  value={locationIdInput}
-                  onChange={(e) => setLocationIdInput(e.target.value)}
-                  placeholder="Ex: 256947874165590"
-                />
-                <p className="text-[10px] text-muted-foreground leading-normal">
-                  Insira o ID numérico da Página do Facebook do local.
-                </p>
-              </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1 text-sm font-semibold">Marcação de Perfis</Label>
+              <Input
+                value={userTagsInput}
+                onChange={(e) => setUserTagsInput(e.target.value)}
+                placeholder="Ex: @iesperancagps, @luizrogeriopaixao"
+              />
+              <p className="text-[10px] text-muted-foreground leading-normal">
+                Separe os perfis por vírgula. As contas marcadas serão notificadas no post.
+              </p>
             </div>
           )}
 
