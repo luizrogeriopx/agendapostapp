@@ -154,7 +154,7 @@ export const publishPostNow = createServerFn({ method: "POST" })
     // Fetch the post and check ownership
     const { data: post, error: pErr } = await supabaseAdmin
       .from("scheduled_posts")
-      .select("id, post_type, caption, media_urls, account_id, user_id, status")
+      .select("id, post_type, caption, media_urls, account_id, user_id, status, user_tags, location_id")
       .eq("id", data.id)
       .eq("user_id", userId)
       .single();

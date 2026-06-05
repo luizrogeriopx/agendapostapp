@@ -13,7 +13,7 @@ export const Route = createFileRoute("/api/public/publish-due")({
         const nowIso = new Date().toISOString();
         const { data: duePosts, error } = await supabaseAdmin
           .from("scheduled_posts")
-          .select("id, post_type, caption, media_urls, account_id, user_id")
+          .select("id, post_type, caption, media_urls, account_id, user_id, user_tags, location_id")
           .eq("status", "scheduled")
           .lte("scheduled_at", nowIso)
           .limit(10);
