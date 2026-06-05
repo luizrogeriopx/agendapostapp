@@ -88,7 +88,7 @@ export type Database = {
           media_permalink?: string | null
           media_thumbnail?: string | null
           reply_count?: number
-          trigger_words?: string[]
+          trigger_words: string[]
           updated_at?: string
           user_id: string
         }
@@ -122,7 +122,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       profiles: {
@@ -155,26 +155,67 @@ export type Database = {
         }
         Relationships: []
       }
-      webhook_logs: {
+      scheduled_posts: {
         Row: {
-          error: string | null
+          account_id: string
+          caption: string | null
+          created_at: string
+          error_message: string | null
           id: string
-          payload: Json
-          received_at: string
+          ig_media_id: string | null
+          location_id: string | null
+          media_urls: string[]
+          post_type: string
+          published_at: string | null
+          scheduled_at: string
+          status: string
+          updated_at: string
+          user_id: string
+          user_tags: string[]
         }
         Insert: {
-          error?: string | null
+          account_id: string
+          caption?: string | null
+          created_at?: string
+          error_message?: string | null
           id?: string
-          payload: Json
-          received_at?: string
+          ig_media_id?: string | null
+          location_id?: string | null
+          media_urls?: string[]
+          post_type?: string
+          published_at?: string | null
+          scheduled_at: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          user_tags?: string[]
         }
         Update: {
-          error?: string | null
+          account_id?: string
+          caption?: string | null
+          created_at?: string
+          error_message?: string | null
           id?: string
-          payload?: Json
-          received_at?: string
+          ig_media_id?: string | null
+          location_id?: string | null
+          media_urls?: string[]
+          post_type?: string
+          published_at?: string | null
+          scheduled_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          user_tags?: string[]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_posts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "instagram_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_invoices: {
         Row: {
@@ -223,70 +264,29 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          }
-        ]
-      }
-      scheduled_posts: {
-        Row: {
-          account_id: string
-          caption: string | null
-          created_at: string
-          error_message: string | null
-          id: string
-          ig_media_id: string | null
-          media_urls: string[]
-          post_type: string
-          published_at: string | null
-          scheduled_at: string
-          status: string
-          updated_at: string
-          user_id: string
-          location_id: string | null
-          user_tags: string[]
-        }
-        Insert: {
-          account_id: string
-          caption?: string | null
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          ig_media_id?: string | null
-          media_urls?: string[]
-          post_type?: string
-          published_at?: string | null
-          scheduled_at: string
-          status?: string
-          updated_at?: string
-          user_id: string
-          location_id?: string | null
-          user_tags?: string[]
-        }
-        Update: {
-          account_id?: string
-          caption?: string | null
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          ig_media_id?: string | null
-          media_urls?: string[]
-          post_type?: string
-          published_at?: string | null
-          scheduled_at?: string
-          status?: string
-          updated_at?: string
-          user_id?: string
-          location_id?: string | null
-          user_tags?: string[]
-        }
-        Relationships: [
-          {
-            foreignKeyName: "scheduled_posts_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "instagram_accounts"
-            referencedColumns: ["id"]
           },
         ]
+      }
+      webhook_logs: {
+        Row: {
+          error: string | null
+          id: string
+          payload: Json
+          received_at: string
+        }
+        Insert: {
+          error?: string | null
+          id?: string
+          payload: Json
+          received_at?: string
+        }
+        Update: {
+          error?: string | null
+          id?: string
+          payload?: Json
+          received_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {
