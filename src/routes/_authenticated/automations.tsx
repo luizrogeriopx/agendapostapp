@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -40,9 +40,13 @@ import {
   Sparkles,
   ExternalLink,
   RefreshCw,
+  Crown,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { PLANS, type PlanType } from "@/lib/plans";
+import { getMyProfile } from "@/lib/profile.functions";
 
 export const Route = createFileRoute("/_authenticated/automations")({
   head: () => ({ meta: [{ title: "Automações — Agendador de Instagram" }] }),
@@ -55,11 +59,15 @@ function AutomationsPage() {
   const fetchMedia = useServerFn(listInstagramMedia);
   const saveRule = useServerFn(saveAutomation);
   const removeRule = useServerFn(deleteAutomation);
+  const fetchMyProfile = useServerFn(getMyProfile);
 
   const { data: accounts = [] } = useQuery({
     queryKey: ["accounts"],
     queryFn: () => fetchAccounts(),
   });
+
+  const { data: profile } = useQuery({ queryKey: ["profile"], queryFn: () => fetchMyProfile() });
+  const activePlanId = (profile?.subscription_plan || "teste") as PlanType;
 
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [activeMedia, setActiveMedia] = useState<any | null>(null);
@@ -175,9 +183,46 @@ function AutomationsPage() {
         </p>
       </div>
 
+      {activePlanId === "teste" && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-xs text-amber-500 leading-normal flex items-start gap-2.5">
+          <Crown className="h-5 w-5 fill-amber-500 shrink-0" />
+          <div>
+            <p className="font-bold">Plano Teste Ativo (Limitações do Gratuito)</p>
+            <p className="mt-0.5">
+              Você está limitado a **1 automação ativa por vez** e cada automação responderá a **apenas 3 comentários**. Para obter automações ilimitadas, faça o upgrade.
+            </p>
+            <Link to="/plans" className="underline mt-1.5 inline-block font-semibold">
+              Fazer Upgrade do Plano
+            </Link>
+          </div>
+        </div>
+      )}
+
       {accounts.length === 0 ? (
         <div className="rounded-xl border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
           Conecte uma conta do Instagram nas configurações antes de gerenciar automações.
+        </div>
+      ) : activePlanId === "agendapro" ? (
+        <div className="rounded-2xl border bg-card p-8 text-center max-w-md mx-auto space-y-6 shadow-xs my-10">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10 text-amber-500">
+            <Lock className="h-6 w-6" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-foreground">Automação de Comentários Bloqueada</h2>
+            <p className="text-sm text-muted-foreground leading-normal">
+              O seu plano atual (**Plano AgendaPró**) é focado exclusivamente no agendamento ilimitado de postagens.
+            </p>
+          </div>
+          <div className="border-t pt-4 border-muted/50">
+            <p className="text-xs text-muted-foreground mb-4">
+              Para liberar o uso de automações de comentários e Direct, altere seu plano.
+            </p>
+            <Link to="/plans">
+              <Button style={{ background: "var(--gradient-brand)" }} className="text-white w-full font-semibold">
+                Ver Planos Disponíveis
+              </Button>
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="space-y-6">

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
@@ -17,9 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, X, Loader2, CalendarDays, Eye } from "lucide-react";
+import { Upload, X, Loader2, CalendarDays, Eye, Crown, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { PLANS, type PlanType } from "@/lib/plans";
+import { getMyProfile } from "@/lib/profile.functions";
 
 export const Route = createFileRoute("/_authenticated/schedule")({
   head: () => ({ meta: [{ title: "Agendar — Agendador de Instagram" }] }),
@@ -146,9 +148,13 @@ function SchedulePage() {
   const fetchAccounts = useServerFn(listAccounts);
   const createPost = useServerFn(createScheduledPost);
   const fetchPosts = useServerFn(listPosts);
+  const fetchMyProfile = useServerFn(getMyProfile);
 
   const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: () => fetchAccounts() });
   const { data: existingPosts = [] } = useQuery({ queryKey: ["posts"], queryFn: () => fetchPosts() });
+  const { data: profile } = useQuery({ queryKey: ["profile"], queryFn: () => fetchMyProfile() });
+
+  const activePlanId = (profile?.subscription_plan || "teste") as PlanType;
 
   const [scheduleMode, setScheduleMode] = useState<"individual" | "bulk">("individual");
   const [accountId, setAccountId] = useState("");
@@ -342,25 +348,68 @@ function SchedulePage() {
         </button>
         <button
           onClick={() => {
+            if (activePlanId === "teste") {
+              toast.error("O agendamento em massa é um recurso Pro. Faça o upgrade do seu plano!");
+              return;
+            }
             setScheduleMode("bulk");
             setBulkMedia([]);
             setMedia([]);
             if (postType === "carousel") setPostType("feed");
           }}
           className={cn(
-            "pb-3 text-sm font-semibold border-b-2 px-4 transition-colors",
+            "pb-3 text-sm font-semibold border-b-2 px-4 transition-colors flex items-center gap-1.5",
             scheduleMode === "bulk"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground",
+            activePlanId === "teste" && "opacity-60 cursor-not-allowed"
           )}
         >
           Agendamento em Massa (Lote)
+          {activePlanId === "teste" && <Crown className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />}
         </button>
       </div>
+
+      {activePlanId === "teste" && existingPosts.length >= 5 && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-xs text-amber-500 leading-normal flex items-start gap-2.5">
+          <Crown className="h-5 w-5 fill-amber-500 shrink-0" />
+          <div>
+            <p className="font-bold">Limite do Plano Teste Atingido</p>
+            <p className="mt-0.5">
+              Você atingiu o limite máximo de 5 agendamentos do plano gratuito. Para agendar mais posts, por favor faça o upgrade do seu plano.
+            </p>
+            <Link to="/plans" className="underline mt-1.5 inline-block font-semibold">
+              Fazer Upgrade do Plano
+            </Link>
+          </div>
+        </div>
+      )}
 
       {accounts.length === 0 ? (
         <div className="rounded-xl border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
           Conecte uma conta do Instagram antes de agendar.
+        </div>
+      ) : activePlanId === "automacaopro" ? (
+        <div className="rounded-2xl border bg-card p-8 text-center max-w-md mx-auto space-y-6 shadow-xs my-10">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10 text-amber-500">
+            <Lock className="h-6 w-6" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-foreground">Agendamento de Posts Bloqueado</h2>
+            <p className="text-sm text-muted-foreground leading-normal">
+              O seu plano atual (**Plano AutomaçãoPró**) é focado exclusivamente em automações de comentários e Direct.
+            </p>
+          </div>
+          <div className="border-t pt-4 border-muted/50">
+            <p className="text-xs text-muted-foreground mb-4">
+              Para liberar agendamentos de Posts, Reels e Stories ilimitados, altere seu plano.
+            </p>
+            <Link to="/plans">
+              <Button style={{ background: "var(--gradient-brand)" }} className="text-white w-full font-semibold">
+                Ver Planos Disponíveis
+              </Button>
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="space-y-5 rounded-xl border bg-card p-6">
@@ -496,14 +545,27 @@ function SchedulePage() {
           {/* Marcação de Perfis (Oculto para Stories) */}
           {postType !== "story" && (
             <div className="space-y-2">
-              <Label className="flex items-center gap-1 text-sm font-semibold">Marcação de Perfis</Label>
+              <Label className="flex items-center gap-1 text-sm font-semibold">
+                Marcação de Perfis
+                {activePlanId === "teste" && (
+                  <span className="inline-flex items-center gap-0.5 text-[9px] text-amber-500 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded-full ml-1.5 uppercase">
+                    <Crown className="h-2.5 w-2.5 fill-amber-500" /> Pro
+                  </span>
+                )}
+              </Label>
               <Input
                 value={userTagsInput}
                 onChange={(e) => setUserTagsInput(e.target.value)}
-                placeholder="Ex: @iesperancagps, @luizrogeriopaixao"
+                placeholder={activePlanId === "teste" ? "Recurso Pro (Indisponível no plano de testes)" : "Ex: @iesperancagps, @luizrogeriopaixao"}
+                disabled={activePlanId === "teste"}
+                className={activePlanId === "teste" ? "bg-muted/40 cursor-not-allowed opacity-70 border-amber-500/30" : ""}
               />
               <p className="text-[10px] text-muted-foreground leading-normal">
-                Separe os perfis por vírgula. As contas marcadas serão notificadas no post.
+                {activePlanId === "teste" ? (
+                  <span className="text-amber-500 font-medium">A marcação de usuários exige o plano AgendaPró ou Premium.</span>
+                ) : (
+                  "Separe os perfis por vírgula. As contas marcadas serão notificadas no post."
+                )}
               </p>
             </div>
           )}

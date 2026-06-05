@@ -71,6 +71,7 @@ export type Database = {
           media_id: string
           media_permalink: string | null
           media_thumbnail: string | null
+          reply_count: number
           trigger_words: string[]
           updated_at: string
           user_id: string
@@ -86,6 +87,7 @@ export type Database = {
           media_id: string
           media_permalink?: string | null
           media_thumbnail?: string | null
+          reply_count?: number
           trigger_words?: string[]
           updated_at?: string
           user_id: string
@@ -101,6 +103,7 @@ export type Database = {
           media_id?: string
           media_permalink?: string | null
           media_thumbnail?: string | null
+          reply_count?: number
           trigger_words?: string[]
           updated_at?: string
           user_id?: string
@@ -129,6 +132,7 @@ export type Database = {
           display_name: string | null
           id: string
           role: string | null
+          subscription_plan: string | null
           updated_at: string
         }
         Insert: {
@@ -137,6 +141,7 @@ export type Database = {
           display_name?: string | null
           id: string
           role?: string | null
+          subscription_plan?: string | null
           updated_at?: string
         }
         Update: {
@@ -145,6 +150,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           role?: string | null
+          subscription_plan?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -169,6 +175,50 @@ export type Database = {
           received_at?: string
         }
         Relationships: []
+      }
+      user_invoices: {
+        Row: {
+          amount: number
+          billing_cycle: string
+          created_at: string
+          due_date: string
+          id: string
+          paid_at: string | null
+          plan_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          billing_cycle: string
+          created_at?: string
+          due_date: string
+          id?: string
+          paid_at?: string | null
+          plan_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          billing_cycle?: string
+          created_at?: string
+          due_date?: string
+          id?: string
+          paid_at?: string | null
+          plan_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_invoices_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       scheduled_posts: {
         Row: {

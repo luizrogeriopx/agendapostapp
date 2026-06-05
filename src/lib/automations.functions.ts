@@ -100,6 +100,34 @@ export const saveAutomation = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
+    // Fetch user profile and check active plan
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("subscription_plan")
+      .eq("id", userId)
+      .single();
+
+    const planId = profile?.subscription_plan || "teste";
+
+    if (planId === "agendapro") {
+      throw new Error("O seu plano atual (AgendaPró) não inclui o recurso de automação de comentários. Faça o upgrade do seu plano!");
+    }
+
+    if (planId === "teste" && data.isActive) {
+      // Limit to 1 active automation max
+      const { count, error: countErr } = await supabase
+        .from("instagram_automations")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .neq("media_id", data.mediaId); // exclude the one currently being modified
+
+      if (countErr) throw new Error("Erro ao validar limite do plano.");
+      if (count !== null && count >= 1) {
+        throw new Error("Limite do Plano Teste atingido: você pode ter no máximo 1 automação ativa por vez. Faça o upgrade para liberar automações ilimitadas!");
+      }
+    }
+
     // 1. Verify and retrieve page credentials
     const { data: account, error: accErr } = await supabase
       .from("instagram_accounts")

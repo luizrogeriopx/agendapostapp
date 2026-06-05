@@ -102,6 +102,27 @@ export const Route = createFileRoute("/api/public/meta-webhook")({
                 continue;
               }
 
+              // Fetch owner profile to check subscription plan
+              const { data: profile } = await supabaseAdmin
+                .from("profiles")
+                .select("subscription_plan")
+                .eq("id", automation.user_id)
+                .single();
+
+              const planId = profile?.subscription_plan || "teste";
+
+              if (planId === "agendapro") {
+                console.log(`Skipping automation: Owner has 'agendapro' plan which does not support automations.`);
+                continue;
+              }
+
+              if (planId === "teste") {
+                if (automation.reply_count >= 3) {
+                  console.log(`Skipping automation: Plano Teste reply limit (3) reached for automation ${automation.id}.`);
+                  continue;
+                }
+              }
+
               // Check if keyword matches
               const cleanText = commentText.toLowerCase().trim();
               const words = automation.trigger_words || [];
@@ -120,6 +141,8 @@ export const Route = createFileRoute("/api/public/meta-webhook")({
                 `Triggering automation ${automation.id} for comment "${commentText}" on post ${mediaId}`
               );
 
+              let repliedSuccessfully = false;
+
               // 1. Send public reply to the comment
               try {
                 const replyRes = await fetch(
@@ -133,6 +156,7 @@ export const Route = createFileRoute("/api/public/meta-webhook")({
                   console.error(`Failed to comment reply back on Instagram:`, replyJson.error);
                 } else {
                   console.log(`Successfully replied to comment ${commentId}`);
+                  repliedSuccessfully = true;
                 }
               } catch (replyErr) {
                 console.error(`Error sending comment reply request:`, replyErr);
@@ -161,9 +185,19 @@ export const Route = createFileRoute("/api/public/meta-webhook")({
                   console.error(`Failed to send Direct Message private reply:`, dmJson.error);
                 } else {
                   console.log(`Successfully sent Direct Message reply to commenter ${commenterUsername}`);
+                  repliedSuccessfully = true;
                 }
               } catch (dmErr) {
                 console.error(`Error sending Direct Message request:`, dmErr);
+              }
+
+              // Increment counter for Teste plan if execution succeeded
+              if (repliedSuccessfully && planId === "teste") {
+                await supabaseAdmin
+                  .from("instagram_automations")
+                  .update({ reply_count: automation.reply_count + 1 })
+                  .eq("id", automation.id);
+                console.log(`Plano Teste: Incremented reply_count for automation ${automation.id}`);
               }
             }
           }

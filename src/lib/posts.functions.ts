@@ -18,6 +18,37 @@ export const createScheduledPost = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
+    // Fetch user profile and check active plan
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("subscription_plan")
+      .eq("id", userId)
+      .single();
+    
+    const planId = profile?.subscription_plan || "teste";
+
+    if (planId === "automacaopro") {
+      throw new Error("O seu plano atual (AutomaçãoPró) não inclui suporte a agendamento de postagens. Faça o upgrade de seu plano!");
+    }
+
+    if (planId === "teste") {
+      // 1. Tagging restriction
+      if (data.userTags && data.userTags.length > 0) {
+        throw new Error("Marcação de perfis está disponível apenas no Plano AgendaPró ou Premium.");
+      }
+
+      // 2. Max 5 scheduled posts total restriction
+      const { count, error: countErr } = await supabase
+        .from("scheduled_posts")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+
+      if (countErr) throw new Error("Erro ao validar limite do plano.");
+      if (count !== null && count >= 5) {
+        throw new Error("Limite do Plano Teste atingido: você pode criar no máximo 5 agendamentos. Faça o upgrade para liberar agendamentos ilimitados!");
+      }
+    }
+
     // Ensure the account belongs to the user
     const { data: account, error: accErr } = await supabase
       .from("instagram_accounts")
