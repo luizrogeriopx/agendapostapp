@@ -26,6 +26,13 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Painel — Agendador de Instagram" }] }),
@@ -59,8 +66,14 @@ function Dashboard() {
   const [editScheduledAt, setEditScheduledAt] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const upcoming = posts.filter((p: any) => p.status === "scheduled");
-  const history = posts.filter((p: any) => p.status !== "scheduled");
+  const [filterAccountId, setFilterAccountId] = useState<string>("all");
+
+  const filteredPosts = filterAccountId === "all"
+    ? posts
+    : posts.filter((p: any) => p.account_id === filterAccountId);
+
+  const upcoming = filteredPosts.filter((p: any) => p.status === "scheduled");
+  const history = filteredPosts.filter((p: any) => p.status !== "scheduled");
 
   const handleDelete = async (id: string) => {
     try {
@@ -143,6 +156,28 @@ function Dashboard() {
         </div>
       </div>
 
+      {accounts.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border bg-card/50 shadow-2xs">
+          <div className="space-y-0.5">
+            <h3 className="text-sm font-semibold text-foreground">Filtrar por Perfil</h3>
+            <p className="text-xs text-muted-foreground">Escolha uma conta para filtrar as estatísticas e publicações.</p>
+          </div>
+          <Select value={filterAccountId} onValueChange={setFilterAccountId}>
+            <SelectTrigger className="w-full sm:w-64 bg-card">
+              <SelectValue placeholder="Todas as Contas" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Contas</SelectItem>
+              {accounts.map((a: any) => (
+                <SelectItem key={a.id} value={a.id}>
+                  @{a.username ?? a.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-3">
         <Link to="/schedule" className="block hover:no-underline">
           <StatCard
@@ -152,7 +187,7 @@ function Dashboard() {
             className="hover:border-primary/50 hover:shadow-sm cursor-pointer transition-all"
           />
         </Link>
-        <StatCard icon={CalendarPlus} label="Publicados" value={posts.filter((p: any) => p.status === "published").length} />
+        <StatCard icon={CalendarPlus} label="Publicados" value={filteredPosts.filter((p: any) => p.status === "published").length} />
         <Link to="/accounts" className="block hover:no-underline">
           <StatCard
             icon={Users}
