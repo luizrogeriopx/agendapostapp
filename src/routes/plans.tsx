@@ -40,14 +40,18 @@ function PlansPage() {
   const activePlan = profile?.subscription_plan || "teste";
 
   const upgradeMutation = useMutation({
-    mutationFn: async (vars: { planId: PlanType; billingCycle: "monthly" | "yearly" }) => {
+    mutationFn: async (vars: { planId: PlanType; billingCycle: "monthly" | "yearly"; origin: string }) => {
       return triggerUpgrade({ data: vars });
     },
-    onSuccess: (updated) => {
-      toast.success(`Plano alterado para ${PLANS[updated.subscription_plan as PlanType].name}!`);
-      qc.invalidateQueries({ queryKey: ["profile"] });
-      // Redirect to financial page to see/pay invoice
-      navigate({ to: "/financial" });
+    onSuccess: (res) => {
+      if (res.stripeUrl) {
+        toast.info("Redirecionando para o ambiente de pagamento seguro da Stripe...");
+        window.location.href = res.stripeUrl;
+      } else {
+        toast.success(`Plano alterado para ${PLANS[res.profile?.subscription_plan as PlanType]?.name || "Plano Teste"}!`);
+        qc.invalidateQueries({ queryKey: ["profile"] });
+        navigate({ to: "/financial" });
+      }
     },
     onError: (err: any) => {
       toast.error(err.message || "Erro ao alterar o plano.");
@@ -68,10 +72,11 @@ function PlansPage() {
 
     const billingCycle = isAnnual ? "yearly" : "monthly";
     const planName = PLANS[planId].name;
+    const origin = window.location.origin;
     
     if (planId === "teste") {
       toast.promise(
-        upgradeMutation.mutateAsync({ planId, billingCycle }),
+        upgradeMutation.mutateAsync({ planId, billingCycle, origin }),
         {
           loading: `Alterando para ${planName}...`,
           success: `Plano alterado para ${planName}!`,
@@ -85,8 +90,8 @@ function PlansPage() {
     const price = isAnnual ? PLANS[planId].priceAnnual : PLANS[planId].priceMonthly;
     const period = isAnnual ? "ano" : "mês";
     
-    if (confirm(`Deseja alterar seu plano para o ${planName} por R$ ${price.toFixed(2)}/${period}? Uma fatura será gerada na sua aba Financeiro.`)) {
-      upgradeMutation.mutate({ planId, billingCycle });
+    if (confirm(`Deseja alterar seu plano para o ${planName} por R$ ${price.toFixed(2)}/${period}? Você será redirecionado para a Stripe para concluir o pagamento.`)) {
+      upgradeMutation.mutate({ planId, billingCycle, origin });
     }
   };
 

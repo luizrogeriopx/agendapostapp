@@ -186,6 +186,8 @@ export type Database = {
           paid_at: string | null
           plan_id: string
           status: string
+          stripe_invoice_id: string | null
+          stripe_session_id: string | null
           user_id: string
         }
         Insert: {
@@ -197,6 +199,8 @@ export type Database = {
           paid_at?: string | null
           plan_id: string
           status?: string
+          stripe_invoice_id?: string | null
+          stripe_session_id?: string | null
           user_id: string
         }
         Update: {
@@ -208,6 +212,8 @@ export type Database = {
           paid_at?: string | null
           plan_id?: string
           status?: string
+          stripe_invoice_id?: string | null
+          stripe_session_id?: string | null
           user_id?: string
         }
         Relationships: [

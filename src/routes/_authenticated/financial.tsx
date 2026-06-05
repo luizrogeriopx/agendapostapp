@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getMyProfile, listInvoices, payInvoice } from "@/lib/profile.functions";
+import { getMyProfile, listInvoices, createInvoicePaymentSession, verifyStripeSession } from "@/lib/profile.functions";
 import { PLANS, type PlanType } from "@/lib/plans";
 import { Button } from "@/components/ui/button";
 import { CreditCard, Calendar, Receipt, ArrowRight, Loader2, CheckCircle2, AlertCircle, FileText } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export const Route = createFileRoute("/_authenticated/financial")({
   head: () => ({ meta: [{ title: "Financeiro — Agendador de Instagram" }] }),
@@ -17,7 +17,10 @@ function FinancialPage() {
   const qc = useQueryClient();
   const fetchMyProfile = useServerFn(getMyProfile);
   const fetchInvoices = useServerFn(listInvoices);
-  const triggerPayment = useServerFn(payInvoice);
+  const createPaymentSession = useServerFn(createInvoicePaymentSession);
+  const checkStripeSession = useServerFn(verifyStripeSession);
+
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
 
   const { data: profile, isLoading: loadingProfile } = useQuery({
     queryKey: ["profile"],
@@ -29,14 +32,49 @@ function FinancialPage() {
     queryFn: () => fetchInvoices(),
   });
 
+  // Verify Stripe Session on Mount if session_id is in URL query string
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    
+    if (sessionId) {
+      setVerifyingPayment(true);
+      const toastId = toast.loading("Confirmando seu pagamento com a Stripe...");
+      
+      checkStripeSession({ data: { sessionId } })
+        .then((res) => {
+          if (res.success) {
+            toast.success(`Pagamento confirmado! Plano ativo: ${PLANS[res.planId as PlanType]?.name}`, { id: toastId });
+            qc.invalidateQueries({ queryKey: ["profile"] });
+            qc.invalidateQueries({ queryKey: ["invoices"] });
+          } else {
+            toast.error("O pagamento não pôde ser verificado ou está pendente.", { id: toastId });
+          }
+        })
+        .catch((err) => {
+          toast.error(err.message || "Erro ao verificar pagamento.", { id: toastId });
+        })
+        .finally(() => {
+          setVerifyingPayment(false);
+          // Remove session_id parameter from URL query string
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, document.title, newUrl);
+        });
+    }
+  }, [checkStripeSession, qc]);
+
   const payMutation = useMutation({
     mutationFn: async (invoiceId: string) => {
-      return triggerPayment({ data: { invoiceId } });
+      const origin = window.location.origin;
+      return createPaymentSession({ data: { invoiceId, origin } });
     },
-    onSuccess: (updated) => {
-      toast.success("Pagamento simulado com sucesso!");
-      qc.invalidateQueries({ queryKey: ["invoices"] });
-      qc.invalidateQueries({ queryKey: ["profile"] });
+    onSuccess: (res) => {
+      if (res.stripeUrl) {
+        toast.info("Redirecionando para o ambiente de pagamento seguro da Stripe...");
+        window.location.href = res.stripeUrl;
+      } else {
+        toast.error("Não foi possível gerar o link de pagamento da Stripe.");
+      }
     },
     onError: (err: any) => {
       toast.error(err.message || "Erro ao realizar o pagamento.");
@@ -57,14 +95,21 @@ function FinancialPage() {
     });
   };
 
-  const handlePay = (invoiceId: string, amount: number) => {
-    if (confirm(`Deseja simular o pagamento desta fatura de R$ ${amount.toFixed(2)}?`)) {
-      payMutation.mutate(invoiceId);
-    }
+  const handlePay = (invoiceId: string) => {
+    payMutation.mutate(invoiceId);
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="mx-auto max-w-4xl space-y-8 relative">
+      {/* Stripe payment verification overlay */}
+      {verifyingPayment && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-md z-50 flex flex-col items-center justify-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <h2 className="text-lg font-bold text-foreground">Confirmando pagamento...</h2>
+          <p className="text-sm text-muted-foreground">Por favor, aguarde enquanto validamos sua transação com a Stripe.</p>
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-bold text-foreground">Financeiro</h1>
         <p className="text-sm text-muted-foreground">Gerencie seus planos de assinatura, faturas e histórico de pagamento.</p>
@@ -150,7 +195,7 @@ function FinancialPage() {
             </div>
 
             <div className="text-xs text-muted-foreground mt-4 pt-4 border-t border-muted/50">
-              Pagamentos processados de forma simulada e segura.
+              Pagamentos processados de forma real e segura pela Stripe.
             </div>
           </div>
         </div>
@@ -191,7 +236,7 @@ function FinancialPage() {
                       </span>
                       <Button
                         size="sm"
-                        onClick={() => handlePay(inv.id, inv.amount)}
+                        onClick={() => handlePay(inv.id)}
                         disabled={payMutation.isPending}
                         className="bg-amber-500 hover:bg-amber-600 text-white font-semibold text-[11px] h-8 px-3"
                       >
@@ -250,7 +295,7 @@ function FinancialPage() {
                       onClick={() => {
                         toast.info(`Comprovante de pagamento da fatura ${inv.id.substring(0, 8)} gerado com sucesso!`);
                       }}
-                      title="Baixar Recibo/Fatura"
+                      title="Ver Detalhes"
                     >
                       <FileText className="h-4 w-4" />
                     </Button>

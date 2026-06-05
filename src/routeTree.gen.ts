@@ -24,6 +24,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAutomationsRouteImport } from './routes/_authenticated/automations'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAccountsRouteImport } from './routes/_authenticated/accounts'
+import { Route as ApiPublicStripeWebhookRouteImport } from './routes/api/public/stripe-webhook'
 import { Route as ApiPublicPublishDueRouteImport } from './routes/api/public/publish-due'
 import { Route as ApiPublicMetaWebhookRouteImport } from './routes/api/public/meta-webhook'
 
@@ -102,6 +103,11 @@ const AuthenticatedAccountsRoute = AuthenticatedAccountsRouteImport.update({
   path: '/accounts',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicStripeWebhookRoute = ApiPublicStripeWebhookRouteImport.update({
+  id: '/api/public/stripe-webhook',
+  path: '/api/public/stripe-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPublishDueRoute = ApiPublicPublishDueRouteImport.update({
   id: '/api/public/publish-due',
   path: '/api/public/publish-due',
@@ -130,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/instagram/callback': typeof InstagramCallbackRoute
   '/api/public/meta-webhook': typeof ApiPublicMetaWebhookRoute
   '/api/public/publish-due': typeof ApiPublicPublishDueRoute
+  '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -148,6 +155,7 @@ export interface FileRoutesByTo {
   '/instagram/callback': typeof InstagramCallbackRoute
   '/api/public/meta-webhook': typeof ApiPublicMetaWebhookRoute
   '/api/public/publish-due': typeof ApiPublicPublishDueRoute
+  '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -168,6 +176,7 @@ export interface FileRoutesById {
   '/instagram/callback': typeof InstagramCallbackRoute
   '/api/public/meta-webhook': typeof ApiPublicMetaWebhookRoute
   '/api/public/publish-due': typeof ApiPublicPublishDueRoute
+  '/api/public/stripe-webhook': typeof ApiPublicStripeWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -188,6 +197,7 @@ export interface FileRouteTypes {
     | '/instagram/callback'
     | '/api/public/meta-webhook'
     | '/api/public/publish-due'
+    | '/api/public/stripe-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/instagram/callback'
     | '/api/public/meta-webhook'
     | '/api/public/publish-due'
+    | '/api/public/stripe-webhook'
   id:
     | '__root__'
     | '/'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/instagram/callback'
     | '/api/public/meta-webhook'
     | '/api/public/publish-due'
+    | '/api/public/stripe-webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -238,6 +250,7 @@ export interface RootRouteChildren {
   InstagramCallbackRoute: typeof InstagramCallbackRoute
   ApiPublicMetaWebhookRoute: typeof ApiPublicMetaWebhookRoute
   ApiPublicPublishDueRoute: typeof ApiPublicPublishDueRoute
+  ApiPublicStripeWebhookRoute: typeof ApiPublicStripeWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -347,6 +360,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAccountsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/stripe-webhook': {
+      id: '/api/public/stripe-webhook'
+      path: '/api/public/stripe-webhook'
+      fullPath: '/api/public/stripe-webhook'
+      preLoaderRoute: typeof ApiPublicStripeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/publish-due': {
       id: '/api/public/publish-due'
       path: '/api/public/publish-due'
@@ -398,6 +418,7 @@ const rootRouteChildren: RootRouteChildren = {
   InstagramCallbackRoute: InstagramCallbackRoute,
   ApiPublicMetaWebhookRoute: ApiPublicMetaWebhookRoute,
   ApiPublicPublishDueRoute: ApiPublicPublishDueRoute,
+  ApiPublicStripeWebhookRoute: ApiPublicStripeWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
