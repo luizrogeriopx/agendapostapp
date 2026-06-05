@@ -10,9 +10,7 @@ function getStripeClient() {
   if (!secretKey) {
     throw new Error("A chave secreta da Stripe (STRIPE_SECRET_KEY) não está configurada no servidor.");
   }
-  return new Stripe(secretKey, {
-    apiVersion: "2025-01-27.acls" as any, // use default/latest stable
-  });
+  return new Stripe(secretKey);
 }
 
 // 1. Get the current user's profile

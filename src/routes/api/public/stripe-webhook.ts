@@ -14,9 +14,7 @@ export const Route = createFileRoute("/api/public/stripe-webhook")({
           return Response.json({ error: "Stripe not configured on server" }, { status: 500 });
         }
 
-        const stripe = new Stripe(secretKey, {
-          apiVersion: "2025-01-27.acls" as any,
-        });
+        const stripe = new Stripe(secretKey);
 
         let event: Stripe.Event;
 
