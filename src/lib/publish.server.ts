@@ -22,14 +22,19 @@ async function graphPost(path: string, params: Record<string, string>) {
 }
 
 async function waitForContainer(containerId: string, token: string) {
-  // Reels/videos are processed asynchronously; poll until FINISHED.
+  // Poll until container is FINISHED. Reels/videos/images/carousels require processing.
   for (let i = 0; i < 20; i++) {
     const res = await fetch(
       `${GRAPH_BASE}/${containerId}?fields=status_code&access_token=${token}`,
     );
     const json = await res.json();
+    console.log(`Checking container status for ${containerId}:`, json);
     if (json.status_code === "FINISHED") return;
     if (json.status_code === "ERROR") throw new Error("Falha no processamento da mídia pela Meta.");
+    if (json.status_code === undefined) {
+      console.warn(`status_code is undefined for container ${containerId}. Proceeding anyway.`);
+      return;
+    }
     await new Promise((r) => setTimeout(r, 3000));
   }
   throw new Error("Tempo esgotado aguardando o processamento da mídia.");
@@ -65,7 +70,7 @@ export async function publishToInstagram(
         }
       }
       const child = await graphPost(`${igId}/media`, params);
-      if (isVideo(url)) await waitForContainer(child.id, token);
+      await waitForContainer(child.id, token);
       childIds.push(child.id);
     }
     
@@ -114,11 +119,11 @@ export async function publishToInstagram(
     }
 
     const container = await graphPost(`${igId}/media`, params);
-    if (isVideo(url) || post.post_type === "reel") {
-      await waitForContainer(container.id, token);
-    }
     creationId = container.id;
   }
+
+  // Always wait for the final container (parent carousel or single container) to be ready
+  await waitForContainer(creationId, token);
 
   const published = await graphPost(`${igId}/media_publish`, {
     creation_id: creationId,
