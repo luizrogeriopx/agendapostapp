@@ -185,6 +185,8 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          location_id: string | null
+          user_tags: string[]
         }
         Insert: {
           account_id: string
@@ -200,6 +202,8 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          location_id?: string | null
+          user_tags?: string[]
         }
         Update: {
           account_id?: string
@@ -215,6 +219,8 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          location_id?: string | null
+          user_tags?: string[]
         }
         Relationships: [
           {

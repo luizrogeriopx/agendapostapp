@@ -8,6 +8,8 @@ const postSchema = z.object({
   caption: z.string().max(2200).optional().default(""),
   mediaPaths: z.array(z.string().min(1).max(500)).min(1).max(10),
   scheduledAt: z.string().datetime(),
+  userTags: z.array(z.string()).optional(),
+  locationId: z.string().optional(),
 });
 
 export const createScheduledPost = createServerFn({ method: "POST" })
@@ -41,6 +43,8 @@ export const createScheduledPost = createServerFn({ method: "POST" })
         media_urls: data.mediaPaths,
         scheduled_at: data.scheduledAt,
         status: "scheduled",
+        user_tags: data.userTags ?? [],
+        location_id: data.locationId ?? null,
       })
       .select()
       .single();
@@ -54,7 +58,7 @@ export const listPosts = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("scheduled_posts")
       .select(
-        "id, post_type, caption, media_urls, scheduled_at, status, error_message, published_at, created_at, account_id, instagram_accounts(username, name, profile_picture_url)",
+        "id, post_type, caption, media_urls, scheduled_at, status, error_message, published_at, created_at, account_id, user_tags, location_id, instagram_accounts(username, name, profile_picture_url)",
       )
       .order("scheduled_at", { ascending: true });
     if (error) throw new Error(error.message);

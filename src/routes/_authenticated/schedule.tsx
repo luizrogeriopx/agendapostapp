@@ -154,6 +154,15 @@ function SchedulePage() {
   const [accountId, setAccountId] = useState("");
   const [postType, setPostType] = useState<PostType>("feed");
   const [caption, setCaption] = useState("");
+  const [userTagsInput, setUserTagsInput] = useState("");
+  const [locationIdInput, setLocationIdInput] = useState("");
+
+  const parseUserTags = (input: string): string[] => {
+    return input
+      .split(",")
+      .map((tag) => tag.replace("@", "").trim())
+      .filter((tag) => tag.length > 0);
+  };
   
   // Individual Mode State
   const [scheduledAt, setScheduledAt] = useState("");
@@ -248,6 +257,8 @@ function SchedulePage() {
     if (!scheduledAt) return toast.error("Escolha data e hora.");
     if (new Date(scheduledAt).getTime() < Date.now()) return toast.error("Escolha um horário futuro.");
 
+    const userTags = parseUserTags(userTagsInput);
+
     setSubmitting(true);
     try {
       await createPost({
@@ -257,6 +268,8 @@ function SchedulePage() {
           caption,
           mediaPaths: media.map((m) => m.path),
           scheduledAt: new Date(scheduledAt).toISOString(),
+          userTags,
+          locationId: locationIdInput.trim() || undefined,
         },
       });
       toast.success("Publicação agendada!");
@@ -274,6 +287,8 @@ function SchedulePage() {
     if (bulkMedia.length === 0) return toast.error("Envie ao menos uma mídia.");
     if (!bulkStartDate) return toast.error("Selecione a data de início.");
 
+    const userTags = parseUserTags(userTagsInput);
+
     setSubmitting(true);
     try {
       const promises = bulkMedia.map((m, idx) => {
@@ -285,6 +300,8 @@ function SchedulePage() {
             caption: postType === "story" ? "" : caption,
             mediaPaths: [m.path],
             scheduledAt: scheduledTime,
+            userTags,
+            locationId: locationIdInput.trim() || undefined,
           },
         });
       });
@@ -476,6 +493,34 @@ function SchedulePage() {
                 rows={4}
                 maxLength={2200}
               />
+            </div>
+          )}
+
+          {/* Marcação e Localização (Oculto para Stories) */}
+          {postType !== "story" && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1 text-sm font-semibold">Marcação de Perfis</Label>
+                <Input
+                  value={userTagsInput}
+                  onChange={(e) => setUserTagsInput(e.target.value)}
+                  placeholder="Ex: @iesperancagps, @luizrogeriopaixao"
+                />
+                <p className="text-[10px] text-muted-foreground leading-normal">
+                  Separe os perfis por vírgula. As contas marcadas serão notificadas no post.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1 text-sm font-semibold">ID da Localização (Página Facebook)</Label>
+                <Input
+                  value={locationIdInput}
+                  onChange={(e) => setLocationIdInput(e.target.value)}
+                  placeholder="Ex: 256947874165590"
+                />
+                <p className="text-[10px] text-muted-foreground leading-normal">
+                  Insira o ID numérico da Página do Facebook do local.
+                </p>
+              </div>
             </div>
           )}
 

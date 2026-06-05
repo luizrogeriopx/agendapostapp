@@ -7,6 +7,8 @@ type Post = {
   post_type: string;
   caption: string | null;
   media_urls: string[];
+  user_tags?: string[] | null;
+  location_id?: string | null;
 };
 
 async function graphPost(path: string, params: Record<string, string>) {
@@ -58,17 +60,26 @@ export async function publishToInstagram(
         params.video_url = url;
       } else {
         params.image_url = url;
+        if (post.user_tags && post.user_tags.length > 0) {
+          params.user_tags = JSON.stringify(post.user_tags.map(username => ({ username, x: 0.5, y: 0.5 })));
+        }
       }
       const child = await graphPost(`${igId}/media`, params);
       if (isVideo(url)) await waitForContainer(child.id, token);
       childIds.push(child.id);
     }
-    const parent = await graphPost(`${igId}/media`, {
+    
+    const parentParams: Record<string, string> = {
       media_type: "CAROUSEL",
       children: childIds.join(","),
       caption,
       access_token: token,
-    });
+    };
+    if (post.location_id) {
+      parentParams.location_id = post.location_id;
+    }
+
+    const parent = await graphPost(`${igId}/media`, parentParams);
     creationId = parent.id;
   } else {
     const url = signedUrls[0];
@@ -89,6 +100,16 @@ export async function publishToInstagram(
         params.video_url = url;
       } else {
         params.image_url = url;
+      }
+    }
+
+    // Apply user tags and location (only for non-Story posts)
+    if (post.post_type !== "story") {
+      if (post.user_tags && post.user_tags.length > 0) {
+        params.user_tags = JSON.stringify(post.user_tags.map(username => ({ username, x: 0.5, y: 0.5 })));
+      }
+      if (post.location_id) {
+        params.location_id = post.location_id;
       }
     }
 
