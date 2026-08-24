@@ -151,28 +151,57 @@ export const createScheduledPost = createServerFn({ method: "POST" })
       throw new Error("Este tipo de publicação aceita apenas 1 mídia.");
     }
 
-    const { data: post, error } = await supabase
+    const insertPayload: any = {
+      user_id: userId,
+      account_id: data.accountId,
+      post_type: data.postType,
+      caption: data.caption,
+      media_urls: data.mediaPaths,
+      scheduled_at: data.scheduledAt,
+      status: "scheduled",
+      user_tags: data.userTags ?? [],
+      location_id: data.locationId ?? null,
+    };
+
+    if (data.isRecurring) {
+      insertPayload.is_recurring = true;
+      insertPayload.recurrence_interval = data.recurrenceInterval ?? "day";
+      insertPayload.recurrence_end_type = data.recurrenceEndType ?? "indefinite";
+      insertPayload.recurrence_end_date =
+        data.recurrenceEndType === "until_date" ? data.recurrenceEndDate ?? null : null;
+    } else {
+      insertPayload.is_recurring = false;
+      insertPayload.recurrence_interval = null;
+      insertPayload.recurrence_end_type = null;
+      insertPayload.recurrence_end_date = null;
+    }
+
+    let { data: post, error } = await supabase
       .from("scheduled_posts")
-      .insert({
-        user_id: userId,
-        account_id: data.accountId,
-        post_type: data.postType,
-        caption: data.caption,
-        media_urls: data.mediaPaths,
-        scheduled_at: data.scheduledAt,
-        status: "scheduled",
-        user_tags: data.userTags ?? [],
-        location_id: data.locationId ?? null,
-        is_recurring: data.isRecurring ?? false,
-        recurrence_interval: data.isRecurring ? data.recurrenceInterval ?? "day" : null,
-        recurrence_end_type: data.isRecurring ? data.recurrenceEndType ?? "indefinite" : null,
-        recurrence_end_date:
-          data.isRecurring && data.recurrenceEndType === "until_date"
-            ? data.recurrenceEndDate ?? null
-            : null,
-      })
+      .insert(insertPayload)
       .select()
       .single();
+
+    if (error && (error.message?.includes("is_recurring") || error.message?.includes("schema cache"))) {
+      if (!data.isRecurring) {
+        delete insertPayload.is_recurring;
+        delete insertPayload.recurrence_interval;
+        delete insertPayload.recurrence_end_type;
+        delete insertPayload.recurrence_end_date;
+        const retry = await supabase
+          .from("scheduled_posts")
+          .insert(insertPayload)
+          .select()
+          .single();
+        post = retry.data;
+        error = retry.error;
+      } else {
+        throw new Error(
+          "As colunas de repetição precisam ser criadas no Supabase. Por favor, execute a migração SQL no SQL Editor do Supabase.",
+        );
+      }
+    }
+
     if (error) throw new Error(error.message);
     return post;
   });
@@ -180,12 +209,24 @@ export const createScheduledPost = createServerFn({ method: "POST" })
 export const listPosts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
+    let { data, error } = await context.supabase
       .from("scheduled_posts")
       .select(
         "id, post_type, caption, media_urls, scheduled_at, status, error_message, published_at, created_at, account_id, user_tags, location_id, is_recurring, recurrence_interval, recurrence_end_type, recurrence_end_date, instagram_accounts(username, name, profile_picture_url)",
       )
       .order("scheduled_at", { ascending: true });
+
+    if (error && (error.message?.includes("is_recurring") || error.message?.includes("schema cache"))) {
+      const fallback = await context.supabase
+        .from("scheduled_posts")
+        .select(
+          "id, post_type, caption, media_urls, scheduled_at, status, error_message, published_at, created_at, account_id, user_tags, location_id, instagram_accounts(username, name, profile_picture_url)",
+        )
+        .order("scheduled_at", { ascending: true });
+      data = fallback.data;
+      error = fallback.error;
+    }
+
     if (error) throw new Error(error.message);
 
     const posts = data ?? [];
