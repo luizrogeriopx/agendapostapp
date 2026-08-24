@@ -17,7 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, X, Loader2, CalendarDays, Eye, Crown, Lock } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Upload, X, Loader2, CalendarDays, Eye, Crown, Lock, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { PLANS, type PlanType } from "@/lib/plans";
@@ -184,6 +186,12 @@ function SchedulePage() {
     return `${yyyy}-${mm}-${dd}`;
   });
 
+  // Recurrence State
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceInterval, setRecurrenceInterval] = useState<"day" | "week" | "month">("day");
+  const [recurrenceEndType, setRecurrenceEndType] = useState<"indefinite" | "until_date">("indefinite");
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
+
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -262,6 +270,17 @@ function SchedulePage() {
     if (!scheduledAt) return toast.error("Escolha data e hora.");
     if (new Date(scheduledAt).getTime() < Date.now()) return toast.error("Escolha um horário futuro.");
 
+    if (isRecurring && recurrenceEndType === "until_date") {
+      if (!recurrenceEndDate) {
+        return toast.error("Selecione a data de término da repetição.");
+      }
+      const endDateTime = new Date(recurrenceEndDate + "T23:59:59").getTime();
+      const startDateTime = new Date(scheduledAt).getTime();
+      if (endDateTime <= startDateTime) {
+        return toast.error("A data de término da repetição deve ser posterior à data do agendamento inicial.");
+      }
+    }
+
     const userTags = parseUserTags(userTagsInput);
 
     setSubmitting(true);
@@ -274,6 +293,13 @@ function SchedulePage() {
           mediaPaths: media.map((m) => m.path),
           scheduledAt: new Date(scheduledAt).toISOString(),
           userTags,
+          isRecurring,
+          recurrenceInterval: isRecurring ? recurrenceInterval : undefined,
+          recurrenceEndType: isRecurring ? recurrenceEndType : undefined,
+          recurrenceEndDate:
+            isRecurring && recurrenceEndType === "until_date"
+              ? new Date(recurrenceEndDate + "T23:59:59").toISOString()
+              : undefined,
         },
       });
       toast.success("Publicação agendada!");
@@ -291,6 +317,17 @@ function SchedulePage() {
     if (bulkMedia.length === 0) return toast.error("Envie ao menos uma mídia.");
     if (!bulkStartDate) return toast.error("Selecione a data de início.");
 
+    if (isRecurring && recurrenceEndType === "until_date") {
+      if (!recurrenceEndDate) {
+        return toast.error("Selecione a data de término da repetição.");
+      }
+      const endDateTime = new Date(recurrenceEndDate + "T23:59:59").getTime();
+      const startDateTime = new Date(bulkStartDate + "T00:00:00").getTime();
+      if (endDateTime <= startDateTime) {
+        return toast.error("A data de término da repetição deve ser posterior à data de início.");
+      }
+    }
+
     const userTags = parseUserTags(userTagsInput);
 
     setSubmitting(true);
@@ -305,6 +342,13 @@ function SchedulePage() {
             mediaPaths: [m.path],
             scheduledAt: scheduledTime,
             userTags,
+            isRecurring,
+            recurrenceInterval: isRecurring ? recurrenceInterval : undefined,
+            recurrenceEndType: isRecurring ? recurrenceEndType : undefined,
+            recurrenceEndDate:
+              isRecurring && recurrenceEndType === "until_date"
+                ? new Date(recurrenceEndDate + "T23:59:59").toISOString()
+                : undefined,
           },
         });
       });
@@ -597,6 +641,108 @@ function SchedulePage() {
               </div>
             </div>
           )}
+
+          {/* Configuração de Repetição */}
+          <div className="rounded-xl border bg-card/60 p-4 space-y-4 shadow-2xs">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <Repeat className="h-4 w-4 text-primary" />
+                  <Label htmlFor="repeat-toggle" className="text-sm font-semibold cursor-pointer">
+                    Programar repetição
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Repetir este post periodicamente (a cada dia, semana ou mês).
+                </p>
+              </div>
+              <Switch
+                id="repeat-toggle"
+                checked={isRecurring}
+                onCheckedChange={setIsRecurring}
+              />
+            </div>
+
+            {isRecurring && (
+              <div className="space-y-4 pt-3 border-t border-border/60">
+                {/* Intervalo / Frequência */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-foreground">Repetir a cada</Label>
+                  <Select
+                    value={recurrenceInterval}
+                    onValueChange={(v) => setRecurrenceInterval(v as "day" | "week" | "month")}
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Selecione o intervalo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="day">Dia (Diariamente)</SelectItem>
+                      <SelectItem value="week">Semana (Semanalmente)</SelectItem>
+                      <SelectItem value="month">Mês (Mensalmente)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Condição de término */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-foreground">Término da repetição</Label>
+                  <RadioGroup
+                    value={recurrenceEndType}
+                    onValueChange={(v) => setRecurrenceEndType(v as "indefinite" | "until_date")}
+                    className="grid gap-2"
+                  >
+                    <label
+                      htmlFor="end-indefinite"
+                      className={cn(
+                        "flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors",
+                        recurrenceEndType === "indefinite" ? "border-primary/50 bg-primary/5" : "bg-card hover:bg-muted/40"
+                      )}
+                    >
+                      <RadioGroupItem value="indefinite" id="end-indefinite" />
+                      <div className="text-xs leading-none">
+                        <span className="font-medium text-foreground">Indefinido</span>
+                        <p className="text-muted-foreground text-[11px] mt-1">Repetir continuamente até que eu cancele manualmente.</p>
+                      </div>
+                    </label>
+
+                    <label
+                      htmlFor="end-until-date"
+                      className={cn(
+                        "flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors",
+                        recurrenceEndType === "until_date" ? "border-primary/50 bg-primary/5" : "bg-card hover:bg-muted/40"
+                      )}
+                    >
+                      <RadioGroupItem value="until_date" id="end-until-date" />
+                      <div className="text-xs leading-none">
+                        <span className="font-medium text-foreground">Data de término programada</span>
+                        <p className="text-muted-foreground text-[11px] mt-1">Encerrar automaticamente após uma data específica.</p>
+                      </div>
+                    </label>
+                  </RadioGroup>
+                </div>
+
+                {recurrenceEndType === "until_date" && (
+                  <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <Label className="text-xs font-semibold text-foreground">Data final da repetição</Label>
+                    <Input
+                      type="date"
+                      value={recurrenceEndDate}
+                      onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                      min={
+                        scheduleMode === "individual"
+                          ? (scheduledAt ? scheduledAt.slice(0, 10) : undefined)
+                          : bulkStartDate
+                      }
+                      className="bg-background"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Após esta data, novos posts não serão mais gerados automaticamente.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Previsão do Cronograma em Massa */}
           {scheduleMode === "bulk" && bulkMedia.length > 0 && (

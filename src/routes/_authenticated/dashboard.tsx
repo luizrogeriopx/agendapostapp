@@ -6,10 +6,12 @@ import { listAccounts } from "@/lib/instagram.functions";
 import { POST_TYPE_LABELS, POST_STATUS_LABELS, type PostType } from "@/lib/meta";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CalendarPlus, Users, Clock, MoreVertical, Pencil, Trash, Play, Loader2 } from "lucide-react";
+import { CalendarPlus, Users, Clock, MoreVertical, Pencil, Trash, Play, Loader2, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,6 +66,10 @@ function Dashboard() {
   const [editingPost, setEditingPost] = useState<any | null>(null);
   const [editCaption, setEditCaption] = useState("");
   const [editScheduledAt, setEditScheduledAt] = useState("");
+  const [editIsRecurring, setEditIsRecurring] = useState(false);
+  const [editRecurrenceInterval, setEditRecurrenceInterval] = useState<"day" | "week" | "month">("day");
+  const [editRecurrenceEndType, setEditRecurrenceEndType] = useState<"indefinite" | "until_date">("indefinite");
+  const [editRecurrenceEndDate, setEditRecurrenceEndDate] = useState("");
   const [saving, setSaving] = useState(false);
 
   const [filterAccountId, setFilterAccountId] = useState<string>("all");
@@ -111,11 +117,30 @@ function Dashboard() {
     const hh = ten(date.getHours());
     const min = ten(date.getMinutes());
     setEditScheduledAt(`${yyyy}-${mm}-${dd}T${hh}:${min}`);
+    setEditIsRecurring(post.is_recurring ?? false);
+    setEditRecurrenceInterval(post.recurrence_interval || "day");
+    setEditRecurrenceEndType(post.recurrence_end_type || "indefinite");
+    if (post.recurrence_end_date) {
+      const endD = new Date(post.recurrence_end_date);
+      setEditRecurrenceEndDate(`${endD.getFullYear()}-${ten(endD.getMonth() + 1)}-${ten(endD.getDate())}`);
+    } else {
+      setEditRecurrenceEndDate("");
+    }
   };
 
   const handleSaveEdit = async () => {
     if (!editingPost) return;
     if (!editScheduledAt) return toast.error("Selecione data e hora.");
+    if (editIsRecurring && editRecurrenceEndType === "until_date") {
+      if (!editRecurrenceEndDate) {
+        return toast.error("Selecione a data de término da repetição.");
+      }
+      const endDateTime = new Date(editRecurrenceEndDate + "T23:59:59").getTime();
+      const startDateTime = new Date(editScheduledAt).getTime();
+      if (endDateTime <= startDateTime) {
+        return toast.error("A data de término deve ser posterior à data do agendamento.");
+      }
+    }
     setSaving(true);
     try {
       await editPost({
@@ -123,6 +148,13 @@ function Dashboard() {
           id: editingPost.id,
           caption: editCaption,
           scheduledAt: new Date(editScheduledAt).toISOString(),
+          isRecurring: editIsRecurring,
+          recurrenceInterval: editIsRecurring ? editRecurrenceInterval : null,
+          recurrenceEndType: editIsRecurring ? editRecurrenceEndType : null,
+          recurrenceEndDate:
+            editIsRecurring && editRecurrenceEndType === "until_date"
+              ? new Date(editRecurrenceEndDate + "T23:59:59").toISOString()
+              : null,
         },
       });
       toast.success("Publicação atualizada!");
@@ -259,12 +291,12 @@ function Dashboard() {
 
       {/* Dialog para Edição */}
       <Dialog open={editingPost !== null} onOpenChange={(open) => !open && setEditingPost(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar agendamento</DialogTitle>
           </DialogHeader>
           {editingPost && (
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-3">
               <div className="space-y-2">
                 <Label>Legenda</Label>
                 <Textarea
@@ -282,6 +314,92 @@ function Dashboard() {
                   value={editScheduledAt}
                   onChange={(e) => setEditScheduledAt(e.target.value)}
                 />
+              </div>
+
+              {/* Repetição no Edit */}
+              <div className="rounded-xl border bg-muted/40 p-3.5 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <Repeat className="h-3.5 w-3.5 text-primary" />
+                      <Label htmlFor="edit-repeat-toggle" className="text-xs font-semibold cursor-pointer">
+                        Repetir publicação
+                      </Label>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Repetir periodicamente este agendamento.
+                    </p>
+                  </div>
+                  <Switch
+                    id="edit-repeat-toggle"
+                    checked={editIsRecurring}
+                    onCheckedChange={setEditIsRecurring}
+                  />
+                </div>
+
+                {editIsRecurring && (
+                  <div className="space-y-3 pt-2 border-t border-border/50">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">Repetir a cada</Label>
+                      <Select
+                        value={editRecurrenceInterval}
+                        onValueChange={(v) => setEditRecurrenceInterval(v as "day" | "week" | "month")}
+                      >
+                        <SelectTrigger className="bg-background h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="day">Dia (Diariamente)</SelectItem>
+                          <SelectItem value="week">Semana (Semanalmente)</SelectItem>
+                          <SelectItem value="month">Mês (Mensalmente)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">Término da repetição</Label>
+                      <RadioGroup
+                        value={editRecurrenceEndType}
+                        onValueChange={(v) => setEditRecurrenceEndType(v as "indefinite" | "until_date")}
+                        className="grid gap-1.5"
+                      >
+                        <label
+                          htmlFor="edit-end-indefinite"
+                          className={cn(
+                            "flex items-center space-x-2 rounded-md border p-2 cursor-pointer transition-colors text-xs",
+                            editRecurrenceEndType === "indefinite" ? "border-primary/50 bg-primary/5" : "bg-card"
+                          )}
+                        >
+                          <RadioGroupItem value="indefinite" id="edit-end-indefinite" />
+                          <span>Indefinido (Até que eu cancele manualmente)</span>
+                        </label>
+                        <label
+                          htmlFor="edit-end-until-date"
+                          className={cn(
+                            "flex items-center space-x-2 rounded-md border p-2 cursor-pointer transition-colors text-xs",
+                            editRecurrenceEndType === "until_date" ? "border-primary/50 bg-primary/5" : "bg-card"
+                          )}
+                        >
+                          <RadioGroupItem value="until_date" id="edit-end-until-date" />
+                          <span>Data de término programada</span>
+                        </label>
+                      </RadioGroup>
+                    </div>
+
+                    {editRecurrenceEndType === "until_date" && (
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium">Data final</Label>
+                        <Input
+                          type="date"
+                          value={editRecurrenceEndDate}
+                          onChange={(e) => setEditRecurrenceEndDate(e.target.value)}
+                          min={editScheduledAt ? editScheduledAt.slice(0, 10) : undefined}
+                          className="bg-background h-8 text-xs"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -334,9 +452,22 @@ function PostItem({
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-foreground">
-            {post.caption || <span className="text-muted-foreground italic">(sem legenda)</span>}
-          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="truncate text-sm font-medium text-foreground">
+              {post.caption || <span className="text-muted-foreground italic">(sem legenda)</span>}
+            </p>
+            {post.is_recurring && (
+              <Badge variant="outline" className="gap-1 border-primary/40 text-primary bg-primary/5 text-[10px] font-medium py-0 px-1.5 shrink-0">
+                <Repeat className="h-2.5 w-2.5 shrink-0" />
+                {post.recurrence_interval === "day" && "Diário"}
+                {post.recurrence_interval === "week" && "Semanal"}
+                {post.recurrence_interval === "month" && "Mensal"}
+                {post.recurrence_end_type === "until_date" && post.recurrence_end_date
+                  ? ` • Até ${new Date(post.recurrence_end_date).toLocaleDateString("pt-BR")}`
+                  : " • Indefinido"}
+              </Badge>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground mt-0.5">
             @{post.instagram_accounts?.username ?? "—"} ·{" "}
             {POST_TYPE_LABELS[post.post_type as PostType]} ·{" "}

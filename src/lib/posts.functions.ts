@@ -10,7 +10,94 @@ const postSchema = z.object({
   scheduledAt: z.string().datetime(),
   userTags: z.array(z.string()).optional(),
   locationId: z.string().optional(),
+  isRecurring: z.boolean().optional().default(false),
+  recurrenceInterval: z.enum(["day", "week", "month"]).optional().nullable(),
+  recurrenceEndType: z.enum(["indefinite", "until_date"]).optional().nullable(),
+  recurrenceEndDate: z.string().optional().nullable(),
 });
+
+export function calculateNextRecurrenceDate(baseDate: Date, interval: "day" | "week" | "month"): Date {
+  const next = new Date(baseDate.getTime());
+  if (interval === "day") {
+    next.setDate(next.getDate() + 1);
+  } else if (interval === "week") {
+    next.setDate(next.getDate() + 7);
+  } else if (interval === "month") {
+    const currentDay = next.getDate();
+    next.setMonth(next.getMonth() + 1);
+    if (next.getDate() !== currentDay) {
+      next.setDate(0);
+    }
+  }
+  return next;
+}
+
+export async function scheduleNextRecurrence(
+  post: {
+    id?: string;
+    user_id: string;
+    account_id: string;
+    post_type: string;
+    caption: string | null;
+    media_urls: string[];
+    scheduled_at: string;
+    user_tags?: string[];
+    location_id?: string | null;
+    is_recurring?: boolean | null;
+    recurrence_interval?: string | null;
+    recurrence_end_type?: string | null;
+    recurrence_end_date?: string | null;
+  },
+  supabaseClient: any,
+) {
+  if (!post.is_recurring || !post.recurrence_interval) {
+    return null;
+  }
+
+  const interval = post.recurrence_interval as "day" | "week" | "month";
+  if (!["day", "week", "month"].includes(interval)) {
+    return null;
+  }
+
+  let nextDate = calculateNextRecurrenceDate(new Date(post.scheduled_at), interval);
+  while (nextDate.getTime() <= Date.now()) {
+    nextDate = calculateNextRecurrenceDate(nextDate, interval);
+  }
+
+  if (post.recurrence_end_type === "until_date" && post.recurrence_end_date) {
+    const endDate = new Date(post.recurrence_end_date);
+    if (nextDate.getTime() > endDate.getTime()) {
+      return null;
+    }
+  }
+
+  const { data: newPost, error } = await supabaseClient
+    .from("scheduled_posts")
+    .insert({
+      user_id: post.user_id,
+      account_id: post.account_id,
+      post_type: post.post_type,
+      caption: post.caption,
+      media_urls: post.media_urls,
+      scheduled_at: nextDate.toISOString(),
+      status: "scheduled",
+      user_tags: post.user_tags ?? [],
+      location_id: post.location_id ?? null,
+      is_recurring: true,
+      recurrence_interval: post.recurrence_interval,
+      recurrence_end_type: post.recurrence_end_type,
+      recurrence_end_date: post.recurrence_end_date,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Erro ao agendar próxima repetição:", error);
+    return null;
+  }
+
+  return newPost;
+}
 
 export const createScheduledPost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -76,6 +163,13 @@ export const createScheduledPost = createServerFn({ method: "POST" })
         status: "scheduled",
         user_tags: data.userTags ?? [],
         location_id: data.locationId ?? null,
+        is_recurring: data.isRecurring ?? false,
+        recurrence_interval: data.isRecurring ? data.recurrenceInterval ?? "day" : null,
+        recurrence_end_type: data.isRecurring ? data.recurrenceEndType ?? "indefinite" : null,
+        recurrence_end_date:
+          data.isRecurring && data.recurrenceEndType === "until_date"
+            ? data.recurrenceEndDate ?? null
+            : null,
       })
       .select()
       .single();
@@ -89,7 +183,7 @@ export const listPosts = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("scheduled_posts")
       .select(
-        "id, post_type, caption, media_urls, scheduled_at, status, error_message, published_at, created_at, account_id, user_tags, location_id, instagram_accounts(username, name, profile_picture_url)",
+        "id, post_type, caption, media_urls, scheduled_at, status, error_message, published_at, created_at, account_id, user_tags, location_id, is_recurring, recurrence_interval, recurrence_end_type, recurrence_end_date, instagram_accounts(username, name, profile_picture_url)",
       )
       .order("scheduled_at", { ascending: true });
     if (error) throw new Error(error.message);
@@ -155,17 +249,31 @@ export const updatePost = createServerFn({ method: "POST" })
         id: z.string().uuid(),
         caption: z.string().max(2200).optional().default(""),
         scheduledAt: z.string().datetime(),
+        isRecurring: z.boolean().optional(),
+        recurrenceInterval: z.enum(["day", "week", "month"]).optional().nullable(),
+        recurrenceEndType: z.enum(["indefinite", "until_date"]).optional().nullable(),
+        recurrenceEndDate: z.string().optional().nullable(),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const updateData: any = {
+      caption: data.caption,
+      scheduled_at: data.scheduledAt,
+    };
+    if (data.isRecurring !== undefined) {
+      updateData.is_recurring = data.isRecurring;
+      updateData.recurrence_interval = data.isRecurring ? data.recurrenceInterval ?? "day" : null;
+      updateData.recurrence_end_type = data.isRecurring ? data.recurrenceEndType ?? "indefinite" : null;
+      updateData.recurrence_end_date =
+        data.isRecurring && data.recurrenceEndType === "until_date"
+          ? data.recurrenceEndDate ?? null
+          : null;
+    }
     const { data: post, error } = await supabase
       .from("scheduled_posts")
-      .update({
-        caption: data.caption,
-        scheduled_at: data.scheduledAt,
-      })
+      .update(updateData)
       .eq("id", data.id)
       .eq("user_id", userId)
       .select()
@@ -185,7 +293,7 @@ export const publishPostNow = createServerFn({ method: "POST" })
     // Fetch the post and check ownership
     const { data: post, error: pErr } = await supabaseAdmin
       .from("scheduled_posts")
-      .select("id, post_type, caption, media_urls, account_id, user_id, status, user_tags, location_id")
+      .select("id, post_type, caption, media_urls, account_id, user_id, status, user_tags, location_id, scheduled_at, is_recurring, recurrence_interval, recurrence_end_type, recurrence_end_date")
       .eq("id", data.id)
       .eq("user_id", userId)
       .single();
@@ -231,6 +339,9 @@ export const publishPostNow = createServerFn({ method: "POST" })
           error_message: null,
         })
         .eq("id", post.id);
+
+      // Schedule next recurrence if configured
+      await scheduleNextRecurrence(post as any, supabaseAdmin);
 
       return { ok: true, igMediaId };
     } catch (e: any) {

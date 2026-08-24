@@ -9,11 +9,12 @@ export const Route = createFileRoute("/api/public/publish-due")({
       POST: async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { publishToInstagram } = await import("@/lib/publish.server");
+        const { scheduleNextRecurrence } = await import("@/lib/posts.functions");
 
         const nowIso = new Date().toISOString();
         const { data: duePosts, error } = await supabaseAdmin
           .from("scheduled_posts")
-          .select("id, post_type, caption, media_urls, account_id, user_id, user_tags, location_id")
+          .select("id, post_type, caption, media_urls, account_id, user_id, user_tags, location_id, scheduled_at, is_recurring, recurrence_interval, recurrence_end_type, recurrence_end_date")
           .eq("status", "scheduled")
           .lte("scheduled_at", nowIso)
           .limit(10);
@@ -64,6 +65,10 @@ export const Route = createFileRoute("/api/public/publish-due")({
                 error_message: null,
               })
               .eq("id", post.id);
+
+            // Schedule next recurrence if configured
+            await scheduleNextRecurrence(post as any, supabaseAdmin);
+
             results.push({ id: post.id, ok: true });
           } catch (e: any) {
             await supabaseAdmin
