@@ -163,14 +163,10 @@ export type Database = {
           error_message: string | null
           id: string
           ig_media_id: string | null
-          is_recurring: boolean
           location_id: string | null
           media_urls: string[]
           post_type: string
           published_at: string | null
-          recurrence_end_date: string | null
-          recurrence_end_type: string | null
-          recurrence_interval: string | null
           scheduled_at: string
           status: string
           updated_at: string
@@ -184,14 +180,10 @@ export type Database = {
           error_message?: string | null
           id?: string
           ig_media_id?: string | null
-          is_recurring?: boolean
           location_id?: string | null
           media_urls?: string[]
           post_type?: string
           published_at?: string | null
-          recurrence_end_date?: string | null
-          recurrence_end_type?: string | null
-          recurrence_interval?: string | null
           scheduled_at: string
           status?: string
           updated_at?: string
@@ -205,14 +197,10 @@ export type Database = {
           error_message?: string | null
           id?: string
           ig_media_id?: string | null
-          is_recurring?: boolean
           location_id?: string | null
           media_urls?: string[]
           post_type?: string
           published_at?: string | null
-          recurrence_end_date?: string | null
-          recurrence_end_type?: string | null
-          recurrence_interval?: string | null
           scheduled_at?: string
           status?: string
           updated_at?: string
