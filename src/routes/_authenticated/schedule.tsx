@@ -582,7 +582,7 @@ function SchedulePage() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Data de início da fila</Label>
+                <Label>Data dos posts</Label>
                 <Input
                   type="date"
                   value={bulkStartDate}
@@ -590,7 +590,7 @@ function SchedulePage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Horário de início</Label>
+                <Label>Horário dos posts</Label>
                 <Input
                   type="time"
                   value={bulkStartTime}
