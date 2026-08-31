@@ -1,58 +1,42 @@
+# Finalizar integração de pagamentos Stripe
 
-# Agendador de Instagram
+As chaves `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET` já estão salvas no backend. O fluxo de checkout e o webhook básico (`checkout.session.completed`) já existem no código. Agora é necessário publicar, conectar o webhook real e validar o fluxo de ponta a ponta.
 
-Aplicação para conectar contas do Instagram e agendar **posts (feed/carrossel), stories e reels** com publicação automática no horário escolhido.
+## O que já existe
+- Tela `/plans` com 4 planos (Teste, AgendaPró, AutomaçãoPró, Premium) e toggle mensal/anual.
+- Tela `/financial` com resumo do plano ativo, faturas em aberto e histórico de pagamentos.
+- `upgradePlan` cria sessão de checkout Stripe em modo `subscription` com `price_data` dinâmico.
+- `verifyStripeSession` confirma o pagamento ao retornar de `/financial?session_id=...`.
+- Endpoint `/api/public/stripe-webhook` processa `checkout.session.completed` e atualiza perfil + fatura.
 
-## Como funciona a integração (e o que a Meta exige)
+## Passos para finalizar
 
-A publicação no Instagram só funciona via **Instagram Graph API**, que tem requisitos rígidos. Quero ser transparente sobre eles antes de começar:
+### 1. Publicar o app
+Republicar `agendapostapp.lovable.app` para que o ambiente publicado passe a usar as chaves Stripe salvas. O preview local já as enxerga, mas o site publicado precisa ser atualizado.
 
-1. **Conta Instagram Business ou Creator** (conta pessoal não funciona via API).
-2. Essa conta precisa estar **vinculada a uma Página do Facebook**.
-3. É preciso criar um **App de Desenvolvedor da Meta** (em developers.facebook.com) e obter um **App ID** e **App Secret**.
-4. A API exige que a mídia (imagem/vídeo) esteja em uma **URL pública** — a Meta baixa o arquivo dessa URL. Vamos usar o armazenamento do Lovable Cloud para isso.
-5. **App Review da Meta:** enquanto o app estiver em modo de desenvolvimento, só publica em contas adicionadas como testadoras. Para uso geral, a Meta exige aprovação das permissões `instagram_basic`, `instagram_content_publish`, `pages_show_list` e `business_management`. Vou te guiar nesse processo.
+### 2. Configurar webhook no Stripe
+- URL do endpoint: `https://agendapostapp.lovable.app/api/public/stripe-webhook`.
+- Evento obrigatório: `checkout.session.completed`.
+- Copiar o segredo de assinatura (`whsec_...`) para o secret `STRIPE_WEBHOOK_SECRET` se ainda não for o atual.
 
-Vou montar um guia passo a passo dentro do próprio app para você configurar tudo isso.
+### 3. Melhorar robustez do webhook
+O webhook atual só trata `checkout.session.completed`. Para assinaturas recorrentes funcionarem corretamente, adicionar:
+- `invoice.paid`: marca fatura como paga e cria novas faturas de renovação.
+- `customer.subscription.updated`: sincroniza mudanças de plano/cancelamento vindas do Stripe.
+- `customer.subscription.deleted`: volta o usuário para o plano Teste ao cancelar.
 
-## O que será construído
+### 4. Criar produtos/preços fixos no Stripe (opcional, mas recomendado)
+Hoje o app cria `price_data` dinamicamente a cada checkout. Isso funciona, mas gera muitos preços duplicados no dashboard Stripe. Criar 6 preços fixos (3 planos pagos × 2 ciclos) e usar `price: <id>` no `line_items` melhora a organização e permite cupons/descontos no Stripe.
 
-### 1. Backend (Lovable Cloud)
-Será necessário ativar o Lovable Cloud para banco de dados, autenticação, armazenamento de mídia e tarefas agendadas.
+### 5. Testar o fluxo completo
+- Criar conta/login com Google.
+- Ir em `/plans`, escolher um plano pago e ser redirecionado ao Stripe Checkout.
+- Usar cartão de teste `4242 4242 4242 4242`.
+- Verificar retorno para `/financial?session_id=...` e atualização automática do plano ativo.
+- Enviar evento de teste `checkout.session.completed` do Stripe para validar o webhook.
 
-- **Login com Google** no app.
-- **Tabelas:**
-  - `instagram_accounts` — contas IG conectadas (id, nome, token de acesso de longa duração, data de expiração) ligadas ao usuário.
-  - `scheduled_posts` — posts agendados (tipo: feed/carrossel/story/reel, legenda, lista de mídias, conta destino, horário, status).
-  - `post_media` — arquivos de mídia associados.
-- **RLS:** cada usuário só vê/gerencia seus próprios dados.
-- **Storage:** bucket público para as mídias (necessário para a API da Meta acessar).
-
-### 2. Conexão com a Meta (OAuth)
-- Botão "Conectar Instagram" que inicia o **Facebook Login**.
-- Troca do código por **token de longa duração** (~60 dias) e listagem das contas Instagram Business vinculadas para o usuário escolher.
-- Aviso de renovação quando o token estiver perto de expirar.
-
-### 3. Agendamento e publicação automática
-- **Editor de publicação:** upload de mídia, escrever legenda, escolher conta, tipo (post/story/reel/carrossel), data e hora.
-- **Pré-visualização** do conteúdo antes de agendar.
-- **Calendário/lista** dos posts agendados, com editar/cancelar.
-- **Publicação automática:** um endpoint público (`/api/public/publish-due`) acionado periodicamente por uma tarefa agendada (pg_cron) verifica posts vencidos e os publica via Graph API (fluxo de criar container de mídia → publicar).
-- Tratamento de status: agendado, publicando, publicado, falhou (com motivo).
-
-### 4. Interface
-- Dashboard com próximos agendamentos.
-- Tela de contas conectadas.
-- Tela de criação/edição de agendamento.
-- Guia de configuração da Meta (passo a passo embutido).
-
-## Segredos necessários
-Vou pedir, no momento certo, o **Meta App ID** e o **Meta App Secret** (que você vai obter seguindo o guia). Eles ficam armazenados com segurança no backend, nunca no frontend.
-
-## Detalhes técnicos
-- **Stack:** TanStack Start + Lovable Cloud (Supabase). Server functions/rotas para o fluxo OAuth e publicação.
-- **Tipos de mídia suportados pela API:** imagem única, carrossel (até 10), reels (vídeo) e stories (imagem/vídeo). Limites de formato/tamanho da Meta serão validados no upload.
-- **Cron:** rota `/api/public/*` protegida por segredo, chamada por pg_cron a cada poucos minutos.
-
-## Primeira entrega sugerida
-Para não fazer tudo de uma vez, proponho começar por: login Google + conexão da conta Instagram + agendamento de **post de imagem/carrossel** com publicação automática. Em seguida adiciono **reels** e **stories**. Posso ajustar essa ordem se preferir.
+## Entrega esperada
+- App publicado com Stripe ativo.
+- Webhook configurado e validado.
+- Renovações e cancelamentos tratados.
+- Fluxo de upgrade testado e funcionando.
