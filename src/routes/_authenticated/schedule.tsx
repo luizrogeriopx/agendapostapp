@@ -46,8 +46,6 @@ const getBulkScheduledDates = (
   accountId: string,
   existingPosts: any[]
 ): Date[] => {
-  const dates: Date[] = [];
-  
   const baseDate = startDateStr ? new Date(startDateStr + "T00:00:00") : new Date();
   if (!startDateStr) {
     baseDate.setDate(baseDate.getDate() + 1);
@@ -57,8 +55,7 @@ const getBulkScheduledDates = (
   baseDate.setHours(hour, minute, 0, 0);
 
   const isTimeOccupied = (time: Date) => {
-    // 1. Check existing posts from database
-    const hasConflictInDb = existingPosts.some((post) => {
+    return existingPosts.some((post) => {
       const postAccountId = post.account_id || post.instagram_accounts?.id;
       if (postAccountId !== accountId) return false;
       if (!isSameCategory(post.post_type, postType)) return false;
@@ -73,58 +70,21 @@ const getBulkScheduledDates = (
         postDate.getMinutes() === time.getMinutes()
       );
     });
-
-    if (hasConflictInDb) return true;
-
-    // 2. Check already assigned in this batch
-    const hasConflictInBatch = dates.some((assigned) => {
-      return (
-        assigned.getFullYear() === time.getFullYear() &&
-        assigned.getMonth() === time.getMonth() &&
-        assigned.getDate() === time.getDate() &&
-        assigned.getHours() === time.getHours() &&
-        assigned.getMinutes() === time.getMinutes()
-      );
-    });
-
-    return hasConflictInBatch;
   };
 
-  for (let i = 0; i < bulkMediaLength; i++) {
-    let found = false;
-    let dayOffset = i;
-    let dayAttempts = 0;
-
-    while (!found && dayAttempts < 365) {
-      const candidateDay = new Date(baseDate);
-      candidateDay.setDate(candidateDay.getDate() + dayOffset);
-
-      // Try the user-selected time first, then look for a free minute within the next 60 minutes
-      for (let m = 0; m <= 60; m++) {
-        const candidateTime = new Date(candidateDay);
-        candidateTime.setMinutes(candidateTime.getMinutes() + m);
-
-        if (!isTimeOccupied(candidateTime)) {
-          dates.push(candidateTime);
-          found = true;
-          break;
-        }
-      }
-
-      if (!found) {
-        dayOffset++;
-        dayAttempts++;
-      }
-    }
-
-    if (!found) {
-      const fallbackDate = new Date(baseDate);
-      fallbackDate.setDate(fallbackDate.getDate() + i);
-      dates.push(fallbackDate);
+  // All posts in the batch go out at the same date and time.
+  // If the chosen slot is already taken, shift the whole batch to the next free minute.
+  let scheduledTime = new Date(baseDate);
+  for (let m = 0; m <= 60; m++) {
+    const candidateTime = new Date(baseDate);
+    candidateTime.setMinutes(candidateTime.getMinutes() + m);
+    if (!isTimeOccupied(candidateTime)) {
+      scheduledTime = candidateTime;
+      break;
     }
   }
 
-  return dates;
+  return Array.from({ length: bulkMediaLength }, () => new Date(scheduledTime));
 };
 
 function SchedulePage() {
