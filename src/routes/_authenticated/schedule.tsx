@@ -32,12 +32,6 @@ export const Route = createFileRoute("/_authenticated/schedule")({
 
 type MediaItem = { path: string; url: string; isVideo: boolean };
 
-const STRATEGIC_SLOTS = [
-  { startHour: 8, startMinute: 0 },
-  { startHour: 12, startMinute: 15 },
-  { startHour: 18, startMinute: 30 },
-  { startHour: 20, startMinute: 45 },
-];
 
 const isSameCategory = (t1: string, t2: string) => {
   if ((t1 === "feed" || t1 === "carousel") && (t2 === "feed" || t2 === "carousel")) return true;
