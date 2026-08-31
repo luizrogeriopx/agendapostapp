@@ -188,8 +188,8 @@ function SchedulePage() {
   const allowMultiple = postType === "carousel" && scheduleMode === "individual";
 
   const bulkScheduledDates = useMemo(() => {
-    return getBulkScheduledDates(bulkMedia.length, bulkStartDate, postType, accountId, existingPosts);
-  }, [bulkMedia.length, bulkStartDate, postType, accountId, existingPosts]);
+    return getBulkScheduledDates(bulkMedia.length, bulkStartDate, bulkStartTime, postType, accountId, existingPosts);
+  }, [bulkMedia.length, bulkStartDate, bulkStartTime, postType, accountId, existingPosts]);
 
   const individualConflict = useMemo(() => {
     if (!scheduledAt || !accountId) return false;
