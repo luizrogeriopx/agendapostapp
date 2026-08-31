@@ -47,6 +47,7 @@ const isSameCategory = (t1: string, t2: string) => {
 const getBulkScheduledDates = (
   bulkMediaLength: number,
   startDateStr: string,
+  startTimeStr: string,
   postType: PostType,
   accountId: string,
   existingPosts: any[]
@@ -57,6 +58,9 @@ const getBulkScheduledDates = (
   if (!startDateStr) {
     baseDate.setDate(baseDate.getDate() + 1);
   }
+
+  const [hour, minute] = startTimeStr ? startTimeStr.split(":").map(Number) : [8, 0];
+  baseDate.setHours(hour, minute, 0, 0);
 
   const isTimeOccupied = (time: Date) => {
     // 1. Check existing posts from database
