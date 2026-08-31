@@ -306,6 +306,12 @@ function SchedulePage() {
     if (!accountId) return toast.error("Selecione uma conta.");
     if (bulkMedia.length === 0) return toast.error("Envie ao menos uma mídia.");
     if (!bulkStartDate) return toast.error("Selecione a data de início.");
+    if (!bulkStartTime) return toast.error("Selecione o horário de início.");
+
+    const firstDateTime = new Date(bulkStartDate + "T" + bulkStartTime + ":00");
+    if (firstDateTime.getTime() < Date.now()) {
+      return toast.error("A data e horário de início devem ser futuros.");
+    }
 
     if (isRecurring && recurrenceEndType === "until_date") {
       if (!recurrenceEndDate) {
