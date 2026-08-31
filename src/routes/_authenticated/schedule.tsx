@@ -635,6 +635,14 @@ function SchedulePage() {
                   onChange={(e) => setBulkStartDate(e.target.value)}
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Horário de início</Label>
+                <Input
+                  type="time"
+                  value={bulkStartTime}
+                  onChange={(e) => setBulkStartTime(e.target.value)}
+                />
+              </div>
             </div>
           )}
 
