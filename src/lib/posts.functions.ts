@@ -223,7 +223,7 @@ export const listPosts = createServerFn({ method: "GET" })
           "id, post_type, caption, media_urls, scheduled_at, status, error_message, published_at, created_at, account_id, user_tags, location_id, instagram_accounts(username, name, profile_picture_url)",
         )
         .order("scheduled_at", { ascending: true });
-      data = fallback.data;
+      data = (fallback.data ?? null) as typeof data;
       error = fallback.error;
     }
 

@@ -329,7 +329,7 @@ function AutomationsPage() {
                             <Badge variant={isAutoActive ? "default" : "secondary"} className="text-xs">
                               {isAutoActive ? "Automação Ativa" : "Sem Automação"}
                             </Badge>
-                            <Button size="xs" variant="outline" className="gap-1" onClick={() => openConfig(item)}>
+                            <Button size="sm" variant="outline" className="gap-1" onClick={() => openConfig(item)}>
                               <Settings2 className="h-3 w-3" /> Configurar
                             </Button>
                           </div>
@@ -436,7 +436,7 @@ function AutomationsPage() {
                 <div className="flex items-center justify-between border-t pt-3">
                   <span className="text-xs font-semibold text-muted-foreground">Status da Automação</span>
                   <Button
-                    size="xs"
+                    size="sm"
                     variant={isActive ? "default" : "secondary"}
                     className="gap-1"
                     onClick={() => setIsActive(!isActive)}
