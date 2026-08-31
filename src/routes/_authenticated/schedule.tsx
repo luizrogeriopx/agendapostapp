@@ -105,29 +105,16 @@ const getBulkScheduledDates = (
       const candidateDay = new Date(baseDate);
       candidateDay.setDate(candidateDay.getDate() + dayOffset);
 
-      // Cycle strategic slots to distribute posts evenly across day intervals
-      const preferredSlotIndex = i % STRATEGIC_SLOTS.length;
+      // Try the user-selected time first, then look for a free minute within the next 60 minutes
+      for (let m = 0; m <= 60; m++) {
+        const candidateTime = new Date(candidateDay);
+        candidateTime.setMinutes(candidateTime.getMinutes() + m);
 
-      for (let s = 0; s < STRATEGIC_SLOTS.length; s++) {
-        const slotIndex = (preferredSlotIndex + s) % STRATEGIC_SLOTS.length;
-        const slot = STRATEGIC_SLOTS[slotIndex];
-
-        const slotStart = new Date(candidateDay);
-        slotStart.setHours(slot.startHour, slot.startMinute, 0, 0);
-
-        // Within this 15-minute slot, find a free minute (0 to 15)
-        for (let m = 0; m <= 15; m++) {
-          const candidateTime = new Date(slotStart);
-          candidateTime.setMinutes(candidateTime.getMinutes() + m);
-
-          if (!isTimeOccupied(candidateTime)) {
-            dates.push(candidateTime);
-            found = true;
-            break;
-          }
+        if (!isTimeOccupied(candidateTime)) {
+          dates.push(candidateTime);
+          found = true;
+          break;
         }
-
-        if (found) break;
       }
 
       if (!found) {
@@ -139,8 +126,6 @@ const getBulkScheduledDates = (
     if (!found) {
       const fallbackDate = new Date(baseDate);
       fallbackDate.setDate(fallbackDate.getDate() + i);
-      const slot = STRATEGIC_SLOTS[i % STRATEGIC_SLOTS.length];
-      fallbackDate.setHours(slot.startHour, slot.startMinute, 0, 0);
       dates.push(fallbackDate);
     }
   }
