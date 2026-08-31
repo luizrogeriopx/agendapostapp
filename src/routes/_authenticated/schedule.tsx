@@ -32,12 +32,6 @@ export const Route = createFileRoute("/_authenticated/schedule")({
 
 type MediaItem = { path: string; url: string; isVideo: boolean };
 
-const STRATEGIC_SLOTS = [
-  { startHour: 8, startMinute: 0 },
-  { startHour: 12, startMinute: 15 },
-  { startHour: 18, startMinute: 30 },
-  { startHour: 20, startMinute: 45 },
-];
 
 const isSameCategory = (t1: string, t2: string) => {
   if ((t1 === "feed" || t1 === "carousel") && (t2 === "feed" || t2 === "carousel")) return true;
@@ -47,6 +41,7 @@ const isSameCategory = (t1: string, t2: string) => {
 const getBulkScheduledDates = (
   bulkMediaLength: number,
   startDateStr: string,
+  startTimeStr: string,
   postType: PostType,
   accountId: string,
   existingPosts: any[]
@@ -57,6 +52,9 @@ const getBulkScheduledDates = (
   if (!startDateStr) {
     baseDate.setDate(baseDate.getDate() + 1);
   }
+
+  const [hour, minute] = startTimeStr ? startTimeStr.split(":").map(Number) : [8, 0];
+  baseDate.setHours(hour, minute, 0, 0);
 
   const isTimeOccupied = (time: Date) => {
     // 1. Check existing posts from database
@@ -101,29 +99,16 @@ const getBulkScheduledDates = (
       const candidateDay = new Date(baseDate);
       candidateDay.setDate(candidateDay.getDate() + dayOffset);
 
-      // Cycle strategic slots to distribute posts evenly across day intervals
-      const preferredSlotIndex = i % STRATEGIC_SLOTS.length;
+      // Try the user-selected time first, then look for a free minute within the next 60 minutes
+      for (let m = 0; m <= 60; m++) {
+        const candidateTime = new Date(candidateDay);
+        candidateTime.setMinutes(candidateTime.getMinutes() + m);
 
-      for (let s = 0; s < STRATEGIC_SLOTS.length; s++) {
-        const slotIndex = (preferredSlotIndex + s) % STRATEGIC_SLOTS.length;
-        const slot = STRATEGIC_SLOTS[slotIndex];
-
-        const slotStart = new Date(candidateDay);
-        slotStart.setHours(slot.startHour, slot.startMinute, 0, 0);
-
-        // Within this 15-minute slot, find a free minute (0 to 15)
-        for (let m = 0; m <= 15; m++) {
-          const candidateTime = new Date(slotStart);
-          candidateTime.setMinutes(candidateTime.getMinutes() + m);
-
-          if (!isTimeOccupied(candidateTime)) {
-            dates.push(candidateTime);
-            found = true;
-            break;
-          }
+        if (!isTimeOccupied(candidateTime)) {
+          dates.push(candidateTime);
+          found = true;
+          break;
         }
-
-        if (found) break;
       }
 
       if (!found) {
@@ -135,8 +120,6 @@ const getBulkScheduledDates = (
     if (!found) {
       const fallbackDate = new Date(baseDate);
       fallbackDate.setDate(fallbackDate.getDate() + i);
-      const slot = STRATEGIC_SLOTS[i % STRATEGIC_SLOTS.length];
-      fallbackDate.setHours(slot.startHour, slot.startMinute, 0, 0);
       dates.push(fallbackDate);
     }
   }
@@ -185,6 +168,7 @@ function SchedulePage() {
     const dd = String(tomorrow.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
   });
+  const [bulkStartTime, setBulkStartTime] = useState("12:00");
 
   // Recurrence State
   const [isRecurring, setIsRecurring] = useState(false);
@@ -198,8 +182,8 @@ function SchedulePage() {
   const allowMultiple = postType === "carousel" && scheduleMode === "individual";
 
   const bulkScheduledDates = useMemo(() => {
-    return getBulkScheduledDates(bulkMedia.length, bulkStartDate, postType, accountId, existingPosts);
-  }, [bulkMedia.length, bulkStartDate, postType, accountId, existingPosts]);
+    return getBulkScheduledDates(bulkMedia.length, bulkStartDate, bulkStartTime, postType, accountId, existingPosts);
+  }, [bulkMedia.length, bulkStartDate, bulkStartTime, postType, accountId, existingPosts]);
 
   const individualConflict = useMemo(() => {
     if (!scheduledAt || !accountId) return false;
@@ -316,6 +300,12 @@ function SchedulePage() {
     if (!accountId) return toast.error("Selecione uma conta.");
     if (bulkMedia.length === 0) return toast.error("Envie ao menos uma mídia.");
     if (!bulkStartDate) return toast.error("Selecione a data de início.");
+    if (!bulkStartTime) return toast.error("Selecione o horário de início.");
+
+    const firstDateTime = new Date(bulkStartDate + "T" + bulkStartTime + ":00");
+    if (firstDateTime.getTime() < Date.now()) {
+      return toast.error("A data e horário de início devem ser futuros.");
+    }
 
     if (isRecurring && recurrenceEndType === "until_date") {
       if (!recurrenceEndDate) {
@@ -637,6 +627,14 @@ function SchedulePage() {
                   type="date"
                   value={bulkStartDate}
                   onChange={(e) => setBulkStartDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Horário de início</Label>
+                <Input
+                  type="time"
+                  value={bulkStartTime}
+                  onChange={(e) => setBulkStartTime(e.target.value)}
                 />
               </div>
             </div>
