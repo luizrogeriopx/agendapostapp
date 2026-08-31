@@ -174,6 +174,7 @@ function SchedulePage() {
     const dd = String(tomorrow.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
   });
+  const [bulkStartTime, setBulkStartTime] = useState("12:00");
 
   // Recurrence State
   const [isRecurring, setIsRecurring] = useState(false);
